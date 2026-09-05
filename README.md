@@ -744,3 +744,98 @@ wallet.balance == saldo reconstruído pelo ledger
 ### Diferenciais opcionais
 
 Teste de carga também conta como diferencial. Se fizer, exponha como `bun run test:load` e registre ambiente, metodologia, throughput, p50/p95/p99, taxa de erro, conflitos de concorrência e outbox lag. Não há meta de RPS — a qualidade do experimento e a honestidade da análise pesam mais que o número bruto.
+
+---
+
+## 15. Executando a implementação
+
+### Pré-requisitos
+
+- Bun `1.4.x` no host;
+- PostgreSQL e SQS fornecidos pelos containers deste repositório;
+- Docker Engine com Compose acessível diretamente ou, no Windows, executando nativamente na distribuição `Ubuntu` do WSL 2;
+- portas `3000`, `5432` e `4566` livres para o fluxo manual padrão.
+
+Nenhuma credencial AWS real é necessária. O arquivo `.env.example` contém somente valores locais para PostgreSQL e LocalStack. Prepare o ambiente e instale exatamente o lockfile:
+
+```powershell
+Copy-Item .env.example .env
+bun install --frozen-lockfile
+```
+
+Se o daemon Docker estiver diretamente acessível:
+
+```powershell
+docker compose up -d --wait postgres localstack
+```
+
+No Windows, se o Docker direto não estiver disponível, use explicitamente o Engine da distribuição Ubuntu:
+
+```powershell
+$windowsProjectPath = $PWD.Path.Replace('\', '/')
+$wslProjectPath = (wsl.exe -d Ubuntu -- wslpath -a -- $windowsProjectPath).Trim()
+wsl.exe -d Ubuntu --cd $wslProjectPath -- docker compose up -d --wait postgres localstack
+```
+
+O projeto não inicia Docker Desktop, não troca contextos e não instala Docker. Os dois primeiros comandos convertem automaticamente o diretório atual para o caminho equivalente no WSL.
+
+### Banco e serviço
+
+```powershell
+bun run migration:up
+bun run start
+```
+
+O serviço atende em `http://127.0.0.1:3000`. Use os contratos completos das seções 9 e 10 para criar uma wallet e submeter comandos por HTTP ou SQS. Os endpoints operacionais públicos são:
+
+```text
+GET /health/live
+GET /health/ready
+GET /metrics
+```
+
+O bootstrap do LocalStack cria as filas FIFO de comandos, DLQ e eventos. Comandos SQS usam `walletId` como `MessageGroupId` e o `messageId` imutável como `MessageDeduplicationId`. Eventos publicados usam `aggregateId` e `eventId`, respectivamente. HTTP e SQS convergem no mesmo processamento financeiro e nas mesmas identidades persistidas.
+
+### Verificação do avaliador
+
+O caminho completo é um único comando:
+
+```powershell
+bun run verify:challenge
+```
+
+Ele detecta primeiro um daemon Docker diretamente acessível e, somente no Windows, tenta o fallback explícito `Ubuntu` no WSL 2. Em seguida executa instalação congelada, formato, lint, typecheck, build, testes unitários, integração real, migrations up/down/up, constraints, contratos HTTP, LocalStack FIFO/DLQ, concorrência, resiliência, reconciliação, carga, manifesto de evidências e o quickstart automatizado. Qualquer falha, timeout, etapa obrigatória ausente ou skip inesperado produz exit code diferente de zero.
+
+Comandos focados também estão disponíveis:
+
+```powershell
+bun run test:unit
+bun run test:integration
+bun run test:concurrency
+bun run test:resilience
+bun run test:load
+bun run verify:reconciliation
+bun run verify:evidence
+```
+
+`verify:reconciliation` é somente leitura e falha ao detectar divergência entre saldo materializado, ledger operacional, contabilidade ou cadeia de auditoria. `test:load` usa seed determinística, três processos reais, tráfego HTTP/SQS, uma hot wallet, wallets independentes, pelo menos cinquenta duplicatas e uma reversão fora de ordem. Correção é o critério de aprovação; não existe mínimo artificial de RPS.
+
+Os relatórios locais são escritos em `artifacts/load/<runId>/` e `artifacts/verification/<runId>/` nos formatos JSON e Markdown. `artifacts/` é descartável e ignorado pelo Git. Os relatórios registram seed, composição do cenário, processos, throughput, p50/p95/p99, resultados, erros transitórios, contenção, Outbox e reconciliação sem incluir dinheiro, payloads, credenciais, connection strings ou receipt handles.
+
+O mapa versionado de FR-001..FR-032 e SC-001..SC-008 está em `docs/requirement-evidence.json`; o validador rejeita requisito ausente ou duplicado, referência de evidência obsoleta, arquivo inexistente, comando desconhecido e requisito obrigatório sustentado apenas por prosa.
+
+### Falhas, diagnóstico e runbook
+
+Rejeições de negócio (`INSUFFICIENT_FUNDS`, referência inválida, conflito de idempotência e reversão que causaria saldo negativo) são terminais e auditáveis, mas não são falhas transitórias. Falhas transitórias de PostgreSQL, lock ou SQS permanecem retryable. `FAILED` é reservado a comandos válidos, duravelmente aceitos e posteriormente atingidos por falha permanente classificada. Mensagens malformadas seguem o redrive nativo para a DLQ sem criar efeito financeiro.
+
+Em caso de falha:
+
+1. confira `GET /health/ready`, que reporta PostgreSQL e SQS separadamente sem expor detalhes sensíveis;
+2. inspecione os logs JSON pelo `correlationId` e os contadores em `/metrics`;
+3. execute `bun run verify:reconciliation` antes de qualquer diagnóstico corretivo;
+4. consulte o resumo em `artifacts/verification/<runId>/summary.md` para localizar o primeiro gate que falhou;
+5. preserve volumes e filas compartilhados; os testes isolam bancos, filas e identidades e não dependem de limpeza global destrutiva.
+
+Encerrar o serviço ou os processos de teste é seguro: novos polls e claims param, trabalho confirmado conclui dentro do grace period e leases ou receipts não confirmados ficam recuperáveis. Não use `docker compose down -v` como rotina de validação, pois isso removeria estado compartilhado sem necessidade.
+
+Detalhes executáveis, limites e trade-offs estão em `ARCHITECTURE.md`. Esta seção contém o fluxo completo e copiável para preparar, executar, verificar e diagnosticar a aplicação.

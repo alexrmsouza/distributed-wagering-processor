@@ -1,0 +1,66 @@
+{
+  "name": "jungle-gaming-backend-challenge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.0",
+  "engines": {
+    "bun": ">=1.4.0 <2"
+  },
+  "scripts": {
+    "build": "bun build ./src/main.ts --outdir ./dist --target bun --packages external --sourcemap=external",
+    "start": "bun run src/main.ts",
+    "start:dev": "bun --watch run src/main.ts",
+    "start:prod": "bun run dist/main.js",
+    "lint": "eslint src test scripts eslint.config.js --max-warnings=0",
+    "lint:fix": "eslint src test scripts eslint.config.js --fix",
+    "format": "prettier --write src test scripts docs package.json tsconfig.json eslint.config.js prettier.config.mjs docker-compose.yml ARCHITECTURE.md",
+    "format:check": "prettier --check src test scripts docs package.json tsconfig.json eslint.config.js prettier.config.mjs docker-compose.yml ARCHITECTURE.md",
+    "typecheck": "tsc --noEmit",
+    "migration:create": "mikro-orm migration:create",
+    "migration:up": "mikro-orm migration:up",
+    "migration:down": "mikro-orm migration:down",
+    "migration:list": "mikro-orm migration:list",
+    "db:migrate": "bun run migration:up",
+    "test": "bun test",
+    "test:unit": "bun test test/unit",
+    "test:integration": "bun test test/integration",
+    "test:concurrency": "bun test test/concurrency",
+    "test:resilience": "bun test test/resilience",
+    "test:load": "bun test test/load/distributed-wagering.load.test.ts",
+    "verify:reconciliation": "bun run scripts/verify-reconciliation.ts",
+    "verify:evidence": "bun run scripts/requirement-evidence.ts",
+    "verify:challenge": "bun run scripts/verify-challenge.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "3.1126.0",
+    "@mikro-orm/core": "7.1.15",
+    "@mikro-orm/migrations": "7.1.15",
+    "@mikro-orm/nestjs": "7.1.0",
+    "@mikro-orm/postgresql": "7.1.15",
+    "@nestjs/common": "12.0.1",
+    "@nestjs/core": "12.0.1",
+    "@nestjs/platform-express": "12.0.1",
+    "prom-client": "15.1.3",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@mikro-orm/cli": "7.1.15",
+    "@types/bun": "1.4.1",
+    "eslint": "10.10.0",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.6",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.69.0"
+  },
+  "mikro-orm": {
+    "configPaths": [
+      "./src/bootstrap/configuration/mikro-orm.config.ts"
+    ],
+    "preferTs": true
+  }
+}

@@ -1,0 +1,99 @@
+name: distributed-wagering-processor
+
+services:
+  postgres:
+    image: postgres:17.6-alpine3.22
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-wagering}
+      POSTGRES_USER: ${DATABASE_USER:-wagering}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-wagering}
+    ports:
+      - '${DATABASE_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  localstack:
+    image: localstack/localstack:4.7.0
+    restart: unless-stopped
+    environment:
+      SERVICES: sqs
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      LOCALSTACK_HOST: localstack:4566
+      SQS_ENDPOINT_STRATEGY: off
+      DEBUG: '0'
+      PERSISTENCE: '1'
+    ports:
+      - '${LOCALSTACK_PORT:-4566}:4566'
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - ./docker/localstack/init-queues.sh:/etc/localstack/init/ready.d/init-queues.sh:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          awslocal sqs get-queue-url --queue-name wager-transactions.fifo >/dev/null &&
+          awslocal sqs get-queue-url --queue-name wager-transactions-dlq.fifo >/dev/null &&
+          awslocal sqs get-queue-url --queue-name wager-integration-events.fifo >/dev/null
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  application:
+    image: distributed-wagering-processor:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    init: true
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_HOST: 0.0.0.0
+      APP_PORT: ${APP_PORT:-3000}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-wagering}
+      DATABASE_USER: ${DATABASE_USER:-wagering}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-wagering}
+      DATABASE_SSL: 'false'
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      SQS_ENDPOINT: http://localstack:4566
+      SQS_COMMAND_QUEUE_URL: http://localstack:4566/000000000000/wager-transactions.fifo
+      SQS_COMMAND_DLQ_URL: http://localstack:4566/000000000000/wager-transactions-dlq.fifo
+      SQS_EVENT_QUEUE_URL: http://localstack:4566/000000000000/wager-integration-events.fifo
+      SQS_CONSUMER_ENABLED: 'true'
+      SQS_CONSUMER_NAME: ${SQS_CONSUMER_NAME:-wager-command-consumer}
+      SQS_POLL_WAIT_TIME_SECONDS: ${SQS_POLL_WAIT_TIME_SECONDS:-20}
+      SQS_VISIBILITY_TIMEOUT_SECONDS: ${SQS_VISIBILITY_TIMEOUT_SECONDS:-30}
+      SQS_MAX_NUMBER_OF_MESSAGES: ${SQS_MAX_NUMBER_OF_MESSAGES:-10}
+      SQS_SHUTDOWN_GRACE_PERIOD_MS: ${SQS_SHUTDOWN_GRACE_PERIOD_MS:-10000}
+      OUTBOX_PUBLISHER_ENABLED: ${OUTBOX_PUBLISHER_ENABLED:-true}
+      OUTBOX_PUBLISHER_BATCH_SIZE: ${OUTBOX_PUBLISHER_BATCH_SIZE:-25}
+      OUTBOX_PUBLISHER_LEASE_DURATION_MS: ${OUTBOX_PUBLISHER_LEASE_DURATION_MS:-30000}
+      OUTBOX_PUBLISHER_POLL_INTERVAL_MS: ${OUTBOX_PUBLISHER_POLL_INTERVAL_MS:-1000}
+      OUTBOX_PUBLISHER_SHUTDOWN_GRACE_PERIOD_MS: ${OUTBOX_PUBLISHER_SHUTDOWN_GRACE_PERIOD_MS:-10000}
+    ports:
+      - '${APP_PORT:-3000}:${APP_PORT:-3000}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  localstack-data:

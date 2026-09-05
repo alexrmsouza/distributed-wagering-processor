@@ -1,0 +1,465 @@
+{
+  "schemaVersion": 1,
+  "feature": "distributed-wagering-processor",
+  "requirements": [
+    {
+      "id": "FR-001",
+      "tests": [
+        "test/integration/wallets.http.integration.test.ts",
+        "test/integration/wagering.http.integration.test.ts",
+        "test/integration/health.integration.test.ts"
+      ],
+      "implementation": [
+        "src/wallet/presentation/wallet.controller.ts",
+        "src/wagering/presentation/wagering.controller.ts",
+        "src/health/presentation/health.controller.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#delivery-status"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-002",
+      "tests": ["test/unit/shared/domain/money.test.ts"],
+      "implementation": ["src/shared/domain/money.ts"],
+      "documentation": ["ARCHITECTURE.md#exact-values-and-deterministic-identity"],
+      "commands": ["bun run test:unit"]
+    },
+    {
+      "id": "FR-003",
+      "tests": [
+        "test/integration/schema-constraints.integration.test.ts",
+        "test/integration/wallets.http.integration.test.ts"
+      ],
+      "implementation": ["src/migrations/Migration20260904000100.ts"],
+      "documentation": ["ARCHITECTURE.md#database-enforced-financial-invariants"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-004",
+      "tests": [
+        "test/integration/atomic-unit-of-work.integration.test.ts",
+        "test/integration/wallets.http.integration.test.ts"
+      ],
+      "implementation": ["src/wallet/application/create-wallet.use-case.ts"],
+      "documentation": ["ARCHITECTURE.md#transaction-and-persistence-boundary"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-005",
+      "tests": [
+        "test/unit/wallet/domain/wallet-ledger-entry.test.ts",
+        "test/integration/schema-constraints.integration.test.ts"
+      ],
+      "implementation": [
+        "src/wallet/domain/wallet-ledger-entry.ts",
+        "src/migrations/Migration20260904000200.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#wallet-history-and-reconciliation"],
+      "commands": ["bun run test:unit", "bun run test:integration"]
+    },
+    {
+      "id": "FR-006",
+      "tests": [
+        "test/unit/accounting/domain/accounting-journal.test.ts",
+        "test/integration/schema-constraints.integration.test.ts"
+      ],
+      "implementation": [
+        "src/accounting/domain/accounting-journal.ts",
+        "src/accounting/infrastructure/persistence/mikro-orm-accounting.repository.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#database-enforced-financial-invariants"],
+      "commands": ["bun run test:unit", "bun run test:integration"]
+    },
+    {
+      "id": "FR-007",
+      "tests": [
+        "test/unit/wallet/domain/ledger-hash-chain.test.ts",
+        "test/integration/reconciliation.integration.test.ts"
+      ],
+      "implementation": ["src/wallet/domain/ledger-hash-chain.ts"],
+      "documentation": ["ARCHITECTURE.md#wallet-history-and-reconciliation"],
+      "commands": ["bun run test:unit", "bun run test:integration"]
+    },
+    {
+      "id": "FR-008",
+      "tests": [
+        "test/unit/wagering/application/process-wager-transaction.test.ts",
+        "test/integration/reversals.integration.test.ts"
+      ],
+      "implementation": [
+        "src/wagering/application/process-wager-transaction.use-case.ts",
+        "src/wagering/domain/reversal-rules.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#reversal-and-pending-reference-processing"],
+      "commands": ["bun run test:unit", "bun run test:integration"]
+    },
+    {
+      "id": "FR-009",
+      "tests": [
+        "test/unit/wagering/domain/reversal-rules.test.ts",
+        "test/integration/reversal-database-invariants.integration.test.ts"
+      ],
+      "implementation": [
+        "src/wagering/domain/reversal-rules.ts",
+        "src/migrations/Migration20260904000500.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#reversal-and-pending-reference-processing"],
+      "commands": ["bun run test:unit", "bun run test:integration"]
+    },
+    {
+      "id": "FR-010",
+      "tests": [
+        "test/unit/wagering/application/pending-reference-policy.test.ts",
+        "test/integration/pending-reference-worker.integration.test.ts"
+      ],
+      "implementation": [
+        "src/wagering/application/pending-reference-policy.ts",
+        "src/wagering/infrastructure/pending-reference.worker.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#reversal-and-pending-reference-processing"],
+      "commands": ["bun run test:unit", "bun run test:integration"]
+    },
+    {
+      "id": "FR-011",
+      "tests": [
+        "test/unit/wagering/domain/wager-transaction.test.ts",
+        "test/integration/reversals.integration.test.ts"
+      ],
+      "implementation": [
+        "src/wagering/domain/failure-code.ts",
+        "src/shared/infrastructure/http-error.filter.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#failure-policy"],
+      "commands": ["bun run test:unit", "bun run test:integration"]
+    },
+    {
+      "id": "FR-012",
+      "tests": [
+        "test/unit/shared/domain/payload-hash.test.ts",
+        "test/integration/idempotency-replay.integration.test.ts"
+      ],
+      "implementation": [
+        "src/shared/domain/payload-hash.ts",
+        "src/shared/domain/canonical-json.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#exact-values-and-deterministic-identity"],
+      "commands": ["bun run test:unit", "bun run test:integration"]
+    },
+    {
+      "id": "FR-013",
+      "tests": ["test/integration/idempotency-replay.integration.test.ts"],
+      "implementation": ["src/wagering/infrastructure/persistence/wager-transaction.repository.ts"],
+      "documentation": ["ARCHITECTURE.md#wagering-lock-and-idempotency-strategy"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-014",
+      "tests": [
+        "test/concurrency/wallet-contention.concurrency.test.ts",
+        "test/resilience/sqs-commit-ack-crash.resilience.test.ts",
+        "test/load/distributed-wagering.load.test.ts"
+      ],
+      "implementation": ["test/support/three-instance-harness.ts"],
+      "documentation": ["ARCHITECTURE.md#wagering-lock-and-idempotency-strategy"],
+      "commands": ["bun run test:concurrency", "bun run test:load"]
+    },
+    {
+      "id": "FR-015",
+      "tests": [
+        "test/concurrency/independent-wallets.concurrency.test.ts",
+        "test/load/distributed-wagering.load.test.ts"
+      ],
+      "implementation": ["src/wallet/infrastructure/persistence/mikro-orm-wallet.repository.ts"],
+      "documentation": ["ARCHITECTURE.md#wagering-lock-and-idempotency-strategy"],
+      "commands": ["bun run test:concurrency", "bun run test:load"]
+    },
+    {
+      "id": "FR-016",
+      "tests": [
+        "test/integration/inbox.integration.test.ts",
+        "test/resilience/sqs-commit-ack-crash.resilience.test.ts"
+      ],
+      "implementation": [
+        "src/messaging/infrastructure/inbox.repository.ts",
+        "src/messaging/infrastructure/wager-command.consumer.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#sqs-command-consumption-and-inbox-boundary"],
+      "commands": ["bun run test:integration", "bun run test:resilience"]
+    },
+    {
+      "id": "FR-017",
+      "tests": [
+        "test/integration/cross-transport-idempotency.integration.test.ts",
+        "test/integration/sqs-redrive.integration.test.ts"
+      ],
+      "implementation": [
+        "src/messaging/infrastructure/wager-command.consumer.ts",
+        "src/wagering/application/process-wager-transaction.use-case.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#sqs-command-consumption-and-inbox-boundary"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-018",
+      "tests": [
+        "test/resilience/sqs-shutdown.resilience.test.ts",
+        "test/resilience/sqs-commit-ack-crash.resilience.test.ts"
+      ],
+      "implementation": ["src/messaging/infrastructure/consumer-shutdown.ts"],
+      "documentation": ["ARCHITECTURE.md#sqs-command-consumption-and-inbox-boundary"],
+      "commands": ["bun run test:resilience"]
+    },
+    {
+      "id": "FR-019",
+      "tests": [
+        "test/integration/atomic-unit-of-work.integration.test.ts",
+        "test/integration/wagering-atomicity.integration.test.ts"
+      ],
+      "implementation": [
+        "src/shared/infrastructure/mikro-orm-transaction-runner.ts",
+        "src/wagering/application/process-wager-transaction.use-case.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#transaction-and-persistence-boundary"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-020",
+      "tests": ["test/unit/messaging/integration-event.test.ts"],
+      "implementation": [
+        "src/messaging/application/events/wager-transaction.events.ts",
+        "src/messaging/application/events/wallet-opened.event.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#transactional-outbox-publication"],
+      "commands": ["bun run test:unit"]
+    },
+    {
+      "id": "FR-021",
+      "tests": [
+        "test/concurrency/outbox-publishers.concurrency.test.ts",
+        "test/resilience/outbox-publication-crash.resilience.test.ts",
+        "test/integration/integration-event-inbox.integration.test.ts"
+      ],
+      "implementation": [
+        "src/messaging/infrastructure/outbox.worker.ts",
+        "test/support/event-sink.consumer.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#transactional-outbox-publication"],
+      "commands": ["bun run test:concurrency", "bun run test:resilience"]
+    },
+    {
+      "id": "FR-022",
+      "tests": ["test/integration/structured-logging.integration.test.ts"],
+      "implementation": ["src/observability/infrastructure/redacting-json.logger.ts"],
+      "documentation": ["ARCHITECTURE.md#operational-observability-and-readiness"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-023",
+      "tests": ["test/integration/metrics.integration.test.ts"],
+      "implementation": ["src/observability/infrastructure/prometheus-metrics.ts"],
+      "documentation": ["ARCHITECTURE.md#operational-observability-and-readiness"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-024",
+      "tests": ["test/integration/health.integration.test.ts"],
+      "implementation": [
+        "src/health/application/health.service.ts",
+        "src/health/presentation/health.controller.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#operational-observability-and-readiness"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-025",
+      "tests": [
+        "test/integration/reconciliation.integration.test.ts",
+        "test/integration/verify-reconciliation.integration.test.ts"
+      ],
+      "implementation": [
+        "src/wallet/application/reconcile-wallet.use-case.ts",
+        "scripts/verify-reconciliation.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#wallet-history-and-reconciliation"],
+      "commands": ["bun run verify:reconciliation"]
+    },
+    {
+      "id": "FR-026",
+      "tests": [
+        "test/integration/failpoint-guard.integration.test.ts",
+        "test/resilience/sqs-commit-ack-crash.resilience.test.ts",
+        "test/resilience/outbox-publication-crash.resilience.test.ts"
+      ],
+      "implementation": [
+        "src/shared/infrastructure/failpoints/failpoint-controller.ts",
+        "src/observability/application/failpoint-observability.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#authentication-and-deterministic-failure-proof"],
+      "commands": ["bun run test:resilience"]
+    },
+    {
+      "id": "FR-027",
+      "tests": [
+        "test/integration/migrations.integration.test.ts",
+        "test/concurrency/wallet-contention.concurrency.test.ts",
+        "test/resilience/sqs-commit-ack-crash.resilience.test.ts",
+        "test/load/distributed-wagering.load.test.ts"
+      ],
+      "implementation": ["test/support/three-instance-harness.ts"],
+      "documentation": ["ARCHITECTURE.md#evaluator-grade-verification-and-load-evidence"],
+      "commands": [
+        "bun run test:integration",
+        "bun run test:concurrency",
+        "bun run test:resilience",
+        "bun run test:load"
+      ]
+    },
+    {
+      "id": "FR-028",
+      "tests": [
+        "test/unit/scripts/load.test.ts",
+        "test/unit/scripts/report-load.test.ts",
+        "test/load/distributed-wagering.load.test.ts"
+      ],
+      "implementation": ["scripts/load.ts", "scripts/report-load.ts"],
+      "documentation": ["ARCHITECTURE.md#evaluator-grade-verification-and-load-evidence"],
+      "commands": ["bun run test:load"]
+    },
+    {
+      "id": "FR-029",
+      "tests": [
+        "test/unit/scripts/verify-challenge.test.ts",
+        "test/resilience/verify-challenge.resilience.test.ts",
+        "test/unit/scripts/requirement-evidence.test.ts"
+      ],
+      "implementation": [
+        "scripts/verify-challenge.ts",
+        "scripts/verify-quickstart.ts",
+        "scripts/requirement-evidence.ts",
+        "docs/requirement-evidence.json"
+      ],
+      "documentation": ["ARCHITECTURE.md#evaluator-grade-verification-and-load-evidence"],
+      "commands": ["bun run verify:challenge"]
+    },
+    {
+      "id": "FR-030",
+      "tests": [
+        "test/unit/shared/infrastructure/no-op-auth.guard.test.ts",
+        "test/integration/health.integration.test.ts"
+      ],
+      "implementation": ["src/shared/infrastructure/no-op-auth.guard.ts"],
+      "documentation": ["ARCHITECTURE.md#authentication-and-deterministic-failure-proof"],
+      "commands": ["bun run test:unit", "bun run test:integration"]
+    },
+    {
+      "id": "FR-031",
+      "tests": ["test/integration/wagering.http.integration.test.ts"],
+      "implementation": [
+        "src/shared/infrastructure/http-error.filter.ts",
+        "src/wagering/presentation/wagering.controller.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#failure-policy"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "FR-032",
+      "tests": [
+        "test/integration/sqs-redrive.integration.test.ts",
+        "test/unit/wagering/domain/wager-transaction.test.ts"
+      ],
+      "implementation": [
+        "src/messaging/infrastructure/sqs-retry-policy.ts",
+        "src/wagering/domain/wager-transaction.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#failure-policy"],
+      "commands": ["bun run test:integration", "bun run test:unit"]
+    },
+    {
+      "id": "SC-001",
+      "tests": [
+        "test/integration/wallets.http.integration.test.ts",
+        "test/integration/wagering.http.integration.test.ts",
+        "test/integration/reversals.integration.test.ts"
+      ],
+      "implementation": ["src/wagering/application/process-wager-transaction.use-case.ts"],
+      "documentation": ["ARCHITECTURE.md#wagering-lock-and-idempotency-strategy"],
+      "commands": ["bun run test:integration"]
+    },
+    {
+      "id": "SC-002",
+      "tests": [
+        "test/concurrency/wallet-contention.concurrency.test.ts",
+        "test/load/distributed-wagering.load.test.ts"
+      ],
+      "implementation": ["src/wagering/infrastructure/persistence/wager-transaction.repository.ts"],
+      "documentation": ["ARCHITECTURE.md#wagering-lock-and-idempotency-strategy"],
+      "commands": ["bun run test:concurrency", "bun run test:load"]
+    },
+    {
+      "id": "SC-003",
+      "tests": ["test/concurrency/wallet-contention.concurrency.test.ts"],
+      "implementation": ["src/wallet/infrastructure/persistence/mikro-orm-wallet.repository.ts"],
+      "documentation": ["ARCHITECTURE.md#wagering-lock-and-idempotency-strategy"],
+      "commands": ["bun run test:concurrency"]
+    },
+    {
+      "id": "SC-004",
+      "tests": [
+        "test/integration/reconciliation.integration.test.ts",
+        "test/load/distributed-wagering.load.test.ts"
+      ],
+      "implementation": ["src/wallet/application/reconcile-wallet.use-case.ts"],
+      "documentation": ["ARCHITECTURE.md#wallet-history-and-reconciliation"],
+      "commands": ["bun run verify:reconciliation", "bun run test:load"]
+    },
+    {
+      "id": "SC-005",
+      "tests": [
+        "test/resilience/sqs-commit-ack-crash.resilience.test.ts",
+        "test/resilience/outbox-publication-crash.resilience.test.ts"
+      ],
+      "implementation": [
+        "src/messaging/infrastructure/wager-command.consumer.ts",
+        "src/messaging/infrastructure/outbox.worker.ts"
+      ],
+      "documentation": ["ARCHITECTURE.md#transactional-outbox-publication"],
+      "commands": ["bun run test:resilience"]
+    },
+    {
+      "id": "SC-006",
+      "tests": [
+        "test/resilience/sqs-commit-ack-crash.resilience.test.ts",
+        "test/load/distributed-wagering.load.test.ts"
+      ],
+      "implementation": ["test/support/three-instance-harness.ts"],
+      "documentation": ["ARCHITECTURE.md#wagering-lock-and-idempotency-strategy"],
+      "commands": ["bun run test:resilience", "bun run test:load"]
+    },
+    {
+      "id": "SC-007",
+      "tests": [
+        "test/load/distributed-wagering.load.test.ts",
+        "test/unit/scripts/report-load.test.ts"
+      ],
+      "implementation": ["scripts/load.ts", "scripts/report-load.ts"],
+      "documentation": ["ARCHITECTURE.md#evaluator-grade-verification-and-load-evidence"],
+      "commands": ["bun run test:load"]
+    },
+    {
+      "id": "SC-008",
+      "tests": [
+        "test/unit/scripts/verify-challenge.test.ts",
+        "test/resilience/verify-challenge.resilience.test.ts",
+        "test/unit/scripts/requirement-evidence.test.ts"
+      ],
+      "implementation": [
+        "scripts/verify-challenge.ts",
+        "scripts/verify-quickstart.ts",
+        "scripts/requirement-evidence.ts",
+        "docs/requirement-evidence.json"
+      ],
+      "documentation": ["ARCHITECTURE.md#evaluator-grade-verification-and-load-evidence"],
+      "commands": ["bun run verify:challenge"]
+    }
+  ]
+}
