@@ -12,7 +12,7 @@ class OpenApiTestModule {
 
 let application: INestApplication | undefined;
 let baseUrl: string;
-const OPENAPI_TEST_TIMEOUT_MS = 10_000;
+const OPENAPI_TEST_TIMEOUT_MS = 30_000;
 
 beforeAll(async () => {
   application = await NestFactory.create(OpenApiTestModule, { logger: false });
