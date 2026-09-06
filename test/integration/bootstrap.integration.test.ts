@@ -1,5 +1,6 @@
 import { GetQueueAttributesCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { MikroORM } from '@mikro-orm/postgresql';
+import { NestFactory } from '@nestjs/core';
 import { afterAll, describe, expect, test } from 'bun:test';
 import { z } from 'zod';
 
@@ -46,11 +47,20 @@ afterAll(() => {
 });
 
 describe('service bootstrap', () => {
-  test('starts the empty NestJS application', async () => {
-    const response = await fetch(testEnvironment.appBaseUrl);
+  test('starts the NestJS application on an isolated port', async () => {
+    applyTestEnvironment();
+    const { AppModule } = await import('../../src/app.module.js');
+    const application = await NestFactory.create(AppModule, { logger: false });
 
-    expect(response.status).toBe(404);
-  });
+    try {
+      await application.listen(0, '127.0.0.1');
+      const response = await fetch(await application.getUrl());
+
+      expect(response.status).toBe(404);
+    } finally {
+      await application.close();
+    }
+  }, 30_000);
 
   test('connects to PostgreSQL with the application configuration', async () => {
     applyTestEnvironment();
