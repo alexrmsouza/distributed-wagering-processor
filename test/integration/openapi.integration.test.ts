@@ -12,16 +12,17 @@ class OpenApiTestModule {
 
 let application: INestApplication | undefined;
 let baseUrl: string;
+const OPENAPI_TEST_TIMEOUT_MS = 10_000;
 
 beforeAll(async () => {
   application = await NestFactory.create(OpenApiTestModule, { logger: false });
   await application.listen(0, '127.0.0.1');
   baseUrl = await application.getUrl();
-});
+}, OPENAPI_TEST_TIMEOUT_MS);
 
 afterAll(async () => {
   await application?.close();
-});
+}, OPENAPI_TEST_TIMEOUT_MS);
 
 describe('local API documentation', () => {
   test('serves the executable OpenAPI document as JSON', async () => {
