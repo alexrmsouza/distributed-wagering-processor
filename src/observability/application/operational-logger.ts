@@ -8,6 +8,8 @@ export const DIAGNOSTIC_EVENT_NAMES = Object.freeze([
   'transaction_committed',
   'acknowledged',
   'outbox_claimed',
+  'outbox_blocked',
+  'outbox_replayed',
   'published',
   'retry_scheduled',
   'dead_letter_observed',

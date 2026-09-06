@@ -3,7 +3,7 @@ import type { EntityManager } from '@mikro-orm/core';
 import { executeStatement } from '../../shared/infrastructure/persistence/transactional-query.js';
 import { queryRows } from '../../shared/infrastructure/persistence/transactional-query.js';
 import type { ClaimDueOutboxMessages, OutboxRepository } from '../application/outbox.repository.js';
-import type { OutboxMessage } from '../domain/outbox-message.js';
+import type { OutboxBlockReason, OutboxMessage } from '../domain/outbox-message.js';
 import { OutboxMessageMapper } from '../../shared/infrastructure/persistence/message.mappers.js';
 import type { OutboxMessageRow } from '../../shared/infrastructure/persistence/message-row.schemas.js';
 
@@ -22,13 +22,19 @@ interface OutboxDatabaseRow {
   readonly lease_token: string | null;
   readonly lease_expires_at: Date | null;
   readonly published_at: Date | null;
+  readonly blocked_at: Date | null;
+  readonly last_block_reason: OutboxBlockReason | null;
+  readonly replay_count: number;
+  readonly last_replayed_at: Date | null;
 }
 
 const OUTBOX_RETURNING_COLUMNS = `
   message.id, message.event_id, message.aggregate_id, message.event_type,
   message.version, message.payload, message.correlation_id, message.causation_id,
   message.occurred_at, message.attempts, message.next_attempt_at,
-  message.lease_token, message.lease_expires_at, message.published_at
+  message.lease_token, message.lease_expires_at, message.published_at,
+  message.blocked_at, message.last_block_reason, message.replay_count,
+  message.last_replayed_at
 `;
 
 function toDomain(row: OutboxDatabaseRow): OutboxMessage {
@@ -47,6 +53,10 @@ function toDomain(row: OutboxDatabaseRow): OutboxMessage {
     leaseToken: row.lease_token,
     leaseExpiresAt: row.lease_expires_at === null ? null : new Date(row.lease_expires_at),
     publishedAt: row.published_at === null ? null : new Date(row.published_at),
+    blockedAt: row.blocked_at === null ? null : new Date(row.blocked_at),
+    lastBlockReason: row.last_block_reason,
+    replayCount: row.replay_count,
+    lastReplayedAt: row.last_replayed_at === null ? null : new Date(row.last_replayed_at),
   };
   return OutboxMessageMapper.toDomain(mappedRow);
 }
@@ -63,8 +73,9 @@ export class MikroOrmOutboxRepository implements OutboxRepository {
       `insert into outbox_messages
          (id, event_id, aggregate_id, event_type, version, payload, correlation_id,
           causation_id, occurred_at, attempts, next_attempt_at, lease_token,
-          lease_expires_at, published_at)
-       values (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          lease_expires_at, published_at, blocked_at, last_block_reason,
+          replay_count, last_replayed_at)
+       values (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         state.id,
         state.eventId,
@@ -80,6 +91,10 @@ export class MikroOrmOutboxRepository implements OutboxRepository {
         state.leaseToken,
         state.leaseExpiresAt,
         state.publishedAt,
+        state.blockedAt,
+        state.lastBlockReason,
+        state.replayCount,
+        state.lastReplayedAt,
       ],
     );
   }
@@ -98,6 +113,7 @@ export class MikroOrmOutboxRepository implements OutboxRepository {
          select candidate.id
            from outbox_messages candidate
           where candidate.published_at is null
+            and candidate.blocked_at is null
             and candidate.next_attempt_at <= ?
             and (
               candidate.lease_token is null
@@ -135,7 +151,7 @@ export class MikroOrmOutboxRepository implements OutboxRepository {
       this.entityManager,
       `update outbox_messages
           set published_at = ?, lease_token = null, lease_expires_at = null
-        where id = ? and published_at is null and lease_token = ?
+        where id = ? and published_at is null and blocked_at is null and lease_token = ?
        returning id`,
       [publishedAt, outboxId, leaseToken],
     );
@@ -155,9 +171,75 @@ export class MikroOrmOutboxRepository implements OutboxRepository {
       this.entityManager,
       `update outbox_messages
           set attempts = ?, next_attempt_at = ?, lease_token = null, lease_expires_at = null
-        where id = ? and published_at is null and lease_token = ?
+        where id = ? and published_at is null and blocked_at is null and lease_token = ?
        returning id`,
       [attempts, nextAttemptAt, outboxId, leaseToken],
+    );
+    return rows.length === 1;
+  }
+
+  public async block(
+    outboxId: string,
+    leaseToken: string,
+    attempts: number,
+    reason: OutboxBlockReason,
+    blockedAt: Date,
+  ): Promise<boolean> {
+    if (!Number.isSafeInteger(attempts) || attempts < 1) {
+      throw new RangeError('Outbox block attempts must be a positive safe integer');
+    }
+    const rows = await queryRows<{ readonly id: string }>(
+      this.entityManager,
+      `update outbox_messages
+          set attempts = ?, blocked_at = ?, last_block_reason = ?,
+              lease_token = null, lease_expires_at = null
+        where id = ? and published_at is null and blocked_at is null and lease_token = ?
+       returning id`,
+      [attempts, blockedAt, reason, outboxId, leaseToken],
+    );
+    return rows.length === 1;
+  }
+
+  public async replayBlocked(
+    outboxId: string,
+    operatorId: string,
+    replayedAt: Date,
+  ): Promise<boolean> {
+    if (!/^[A-Za-z0-9._@:-]{1,128}$/.test(operatorId)) {
+      throw new TypeError('Outbox replay operator identity is invalid');
+    }
+    const blockedRows = await queryRows<{
+      readonly attempts: number;
+      readonly last_block_reason: OutboxBlockReason;
+    }>(
+      this.entityManager,
+      `select attempts, last_block_reason
+         from outbox_messages
+        where id = ? and published_at is null and blocked_at is not null
+        for update`,
+      [outboxId],
+    );
+    const blocked = blockedRows[0];
+    if (blocked === undefined) {
+      return false;
+    }
+
+    await executeStatement(
+      this.entityManager,
+      `insert into outbox_replay_audit
+         (id, outbox_id, operator_id, blocked_reason, previous_attempts, replayed_at)
+       values (gen_random_uuid(), ?, ?, ?, ?, ?)`,
+      [outboxId, operatorId, blocked.last_block_reason, blocked.attempts, replayedAt],
+    );
+    const rows = await queryRows<{ readonly id: string }>(
+      this.entityManager,
+      `update outbox_messages
+          set blocked_at = null, attempts = 0, next_attempt_at = ?,
+              lease_token = null, lease_expires_at = null,
+              replay_count = replay_count + 1, last_replayed_at = ?
+        where id = ? and published_at is null and blocked_at is not null
+       returning id`,
+      [replayedAt, replayedAt, outboxId],
     );
     return rows.length === 1;
   }

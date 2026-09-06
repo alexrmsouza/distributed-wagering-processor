@@ -1,6 +1,6 @@
 import { Entity } from '../../shared/domain/entity.js';
 import { cloneAndFreezeCanonicalJson } from '../../shared/domain/immutable-json.js';
-import type { IntegrationEvent } from '../application/integration-event.js';
+import type { IntegrationEvent } from './integration-event.js';
 
 export interface OutboxMessageState {
   readonly id: string;
@@ -17,7 +17,17 @@ export interface OutboxMessageState {
   readonly leaseToken: string | null;
   readonly leaseExpiresAt: Date | null;
   readonly publishedAt: Date | null;
+  readonly blockedAt: Date | null;
+  readonly lastBlockReason: OutboxBlockReason | null;
+  readonly replayCount: number;
+  readonly lastReplayedAt: Date | null;
 }
+
+export const OUTBOX_BLOCK_REASONS = Object.freeze([
+  'PERMANENT_PUBLISH_FAILURE',
+  'RETRY_EXHAUSTED',
+] as const);
+export type OutboxBlockReason = (typeof OUTBOX_BLOCK_REASONS)[number];
 
 export class OutboxMessage extends Entity {
   readonly #state: OutboxMessageState;
@@ -31,6 +41,8 @@ export class OutboxMessage extends Entity {
       nextAttemptAt: new Date(state.nextAttemptAt),
       leaseExpiresAt: state.leaseExpiresAt === null ? null : new Date(state.leaseExpiresAt),
       publishedAt: state.publishedAt === null ? null : new Date(state.publishedAt),
+      blockedAt: state.blockedAt === null ? null : new Date(state.blockedAt),
+      lastReplayedAt: state.lastReplayedAt === null ? null : new Date(state.lastReplayedAt),
     });
     Object.freeze(this);
   }
@@ -56,6 +68,10 @@ export class OutboxMessage extends Entity {
       leaseToken: null,
       leaseExpiresAt: null,
       publishedAt: null,
+      blockedAt: null,
+      lastBlockReason: null,
+      replayCount: 0,
+      lastReplayedAt: null,
     });
   }
 
@@ -68,6 +84,20 @@ export class OutboxMessage extends Entity {
     }
     if ((state.leaseToken === null) !== (state.leaseExpiresAt === null)) {
       throw new TypeError('Outbox lease token and expiry must be set together');
+    }
+    if (!Number.isInteger(state.replayCount) || state.replayCount < 0) {
+      throw new TypeError('Outbox replay count must be a non-negative integer');
+    }
+    if (
+      (state.blockedAt !== null && state.lastBlockReason === null) ||
+      (state.lastBlockReason !== null && !OUTBOX_BLOCK_REASONS.includes(state.lastBlockReason)) ||
+      (state.blockedAt !== null &&
+        (state.publishedAt !== null ||
+          state.leaseToken !== null ||
+          state.leaseExpiresAt !== null)) ||
+      (state.replayCount === 0) !== (state.lastReplayedAt === null)
+    ) {
+      throw new TypeError('Outbox blocked and replay metadata is invalid');
     }
 
     return new OutboxMessage(state);
@@ -82,6 +112,9 @@ export class OutboxMessage extends Entity {
       leaseExpiresAt:
         this.#state.leaseExpiresAt === null ? null : new Date(this.#state.leaseExpiresAt),
       publishedAt: this.#state.publishedAt === null ? null : new Date(this.#state.publishedAt),
+      blockedAt: this.#state.blockedAt === null ? null : new Date(this.#state.blockedAt),
+      lastReplayedAt:
+        this.#state.lastReplayedAt === null ? null : new Date(this.#state.lastReplayedAt),
     });
   }
 }

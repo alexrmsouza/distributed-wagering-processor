@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { EntityManager } from '@mikro-orm/core';
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 
-import type { IntegrationEventEnvelope } from '../../src/messaging/application/integration-event.js';
+import type { IntegrationEventEnvelope } from '../../src/messaging/domain/integration-event.js';
 import { EventSinkConsumer } from '../support/event-sink.consumer.js';
 import {
   createDatabaseTestContext,

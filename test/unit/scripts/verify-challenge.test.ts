@@ -56,6 +56,7 @@ describe('challenge verification orchestrator', () => {
       'lint',
       'typecheck',
       'build',
+      'openapi',
       'unit',
       'integration',
       'migrations',

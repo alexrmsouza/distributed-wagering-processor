@@ -8,7 +8,7 @@ import { FailpointController } from '../../src/shared/infrastructure/failpoints/
 import {
   FAILPOINT_NAMES,
   type FailpointName,
-} from '../../src/shared/infrastructure/failpoints/failpoint.port.js';
+} from '../../src/shared/application/failpoints/failpoint.port.js';
 
 function armFailpoint(
   failpoint: FailpointName,

@@ -9,8 +9,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { z } from 'zod';
 
+import {
+  createWalletRequestSchema,
+  ledgerLimitSchema,
+  walletIdSchema,
+} from '../../api-documentation/http-contract.schemas.js';
 import { Money } from '../../shared/domain/money.js';
 import { CreateWalletUseCase } from '../application/create-wallet.use-case.js';
 import { GetWalletUseCase } from '../application/get-wallet.use-case.js';
@@ -21,24 +25,6 @@ import { ReconciliationPresenter } from './reconciliation.presenter.js';
 import { WalletAuthenticationGuard } from './wallet-authentication.guard.js';
 import { toWalletHttpException } from './wallet-http-error.js';
 import { WalletPresenter } from './wallet.presenter.js';
-
-const createWalletSchema = z
-  .object({
-    playerId: z.uuid(),
-    initialBalance: z
-      .object({
-        amount: z.string(),
-        currency: z.string(),
-      })
-      .strict(),
-  })
-  .strict();
-const walletIdSchema = z.uuid();
-const limitSchema = z
-  .string()
-  .regex(/^\d+$/)
-  .transform(Number)
-  .pipe(z.number().int().min(1).max(100));
 
 @Controller('wallets')
 @UseGuards(WalletAuthenticationGuard)
@@ -56,7 +42,7 @@ export class WalletController {
     @Headers('x-correlation-id') correlationId: string | undefined,
   ) {
     try {
-      const input = createWalletSchema.parse(body);
+      const input = createWalletRequestSchema.parse(body);
       const wallet = await this.createWallet.execute({
         playerId: input.playerId,
         initialBalance: Money.create(input.initialBalance),
@@ -76,7 +62,7 @@ export class WalletController {
   ) {
     try {
       const parsedWalletId = walletIdSchema.parse(walletId);
-      const limit = rawLimit === undefined ? undefined : limitSchema.parse(rawLimit);
+      const limit = rawLimit === undefined ? undefined : ledgerLimitSchema.parse(rawLimit);
       const page = await this.listLedger.execute({
         walletId: parsedWalletId,
         ...(cursor === undefined ? {} : { cursor }),

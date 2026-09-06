@@ -31,7 +31,10 @@ export interface ReconcileWalletDependencies {
   readonly generateCorrelationId?: () => string;
 }
 
-function reconstructLedger(entries: readonly WalletLedgerEntryState[], currency: string): bigint {
+export function reconstructLedger(
+  entries: readonly WalletLedgerEntryState[],
+  currency: string,
+): bigint {
   return entries.reduce((balance, entry) => {
     if (entry.currency !== currency || entry.amountMinor <= 0n) {
       return balance;
@@ -40,7 +43,7 @@ function reconstructLedger(entries: readonly WalletLedgerEntryState[], currency:
   }, 0n);
 }
 
-function assessAccounting(
+export function assessAccounting(
   postings: readonly WalletAccountingPosting[],
   walletId: string,
   currency: string,

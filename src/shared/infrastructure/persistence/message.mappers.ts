@@ -39,6 +39,10 @@ export const OutboxMessageMapper = {
       leaseToken: row.leaseToken,
       leaseExpiresAt: row.leaseExpiresAt,
       publishedAt: row.publishedAt,
+      blockedAt: row.blockedAt,
+      lastBlockReason: row.lastBlockReason,
+      replayCount: row.replayCount,
+      lastReplayedAt: row.lastReplayedAt,
     });
   },
 

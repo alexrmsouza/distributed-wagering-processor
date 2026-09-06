@@ -12,7 +12,7 @@ import {
 import type { EntityManager } from '@mikro-orm/core';
 import { expect, setDefaultTimeout, test } from 'bun:test';
 
-import type { IntegrationEventEnvelope } from '../../src/messaging/application/integration-event.js';
+import type { IntegrationEventEnvelope } from '../../src/messaging/domain/integration-event.js';
 import { MikroOrmTransactionRunner } from '../../src/shared/infrastructure/mikro-orm-transaction-runner.js';
 import { ReconcileWalletUseCase } from '../../src/wallet/application/reconcile-wallet.use-case.js';
 import { createWalletTransactionContext } from '../../src/wallet/infrastructure/persistence/wallet-transaction-context.js';

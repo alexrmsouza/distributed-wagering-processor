@@ -1,7 +1,7 @@
 import type { FailureCode } from '../../../wagering/domain/failure-code.js';
 import type { LedgerDirection } from '../../../wallet/domain/ledger-hash-chain.js';
 import type { PublicMoney } from '../../../shared/domain/money.js';
-import { IntegrationEvent, type IntegrationEventState } from '../integration-event.js';
+import { IntegrationEvent, type IntegrationEventState } from '../../domain/integration-event.js';
 
 type PublicWagerKind = 'BET' | 'WIN' | 'LOSS' | 'REFUND' | 'ROLLBACK';
 

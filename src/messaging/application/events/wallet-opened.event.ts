@@ -1,5 +1,5 @@
 import type { PublicMoney } from '../../../shared/domain/money.js';
-import { IntegrationEvent, type IntegrationEventState } from '../integration-event.js';
+import { IntegrationEvent, type IntegrationEventState } from '../../domain/integration-event.js';
 
 export interface WalletOpenedData extends Readonly<Record<string, unknown>> {
   readonly walletId: string;

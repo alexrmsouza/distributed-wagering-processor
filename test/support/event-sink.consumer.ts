@@ -1,7 +1,7 @@
 import type { EntityManager } from '@mikro-orm/core';
 import type { MikroORM } from '@mikro-orm/postgresql';
 
-import type { IntegrationEventEnvelope } from '../../src/messaging/application/integration-event.js';
+import type { IntegrationEventEnvelope } from '../../src/messaging/domain/integration-event.js';
 import { InboxMessage } from '../../src/messaging/domain/inbox-message.js';
 import { MikroOrmInboxRepository } from '../../src/messaging/infrastructure/inbox.repository.js';
 import { hashPayload } from '../../src/shared/domain/payload-hash.js';

@@ -1,5 +1,7 @@
 import { EntitySchema } from '@mikro-orm/core';
 
+import type { OutboxBlockReason } from '../../../messaging/domain/outbox-message.js';
+
 export class InboxMessageRow {
   declare consumerName: string;
   declare messageId: string;
@@ -24,6 +26,10 @@ export class OutboxMessageRow {
   declare leaseToken: string | null;
   declare leaseExpiresAt: Date | null;
   declare publishedAt: Date | null;
+  declare blockedAt: Date | null;
+  declare lastBlockReason: OutboxBlockReason | null;
+  declare replayCount: number;
+  declare lastReplayedAt: Date | null;
 }
 
 const timestamp = { type: Date } as const;
@@ -60,5 +66,9 @@ export const OutboxMessageRowSchema = new EntitySchema<OutboxMessageRow>({
     leaseToken: { ...uuid, fieldName: 'lease_token', nullable: true },
     leaseExpiresAt: { ...timestamp, fieldName: 'lease_expires_at', nullable: true },
     publishedAt: { ...timestamp, fieldName: 'published_at', nullable: true },
+    blockedAt: { ...timestamp, fieldName: 'blocked_at', nullable: true },
+    lastBlockReason: { type: 'string', fieldName: 'last_block_reason', nullable: true },
+    replayCount: { type: 'integer', fieldName: 'replay_count' },
+    lastReplayedAt: { ...timestamp, fieldName: 'last_replayed_at', nullable: true },
   },
 });

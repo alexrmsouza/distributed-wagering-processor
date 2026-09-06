@@ -9,9 +9,9 @@ import { NOOP_OPERATIONAL_METRICS } from '../../observability/application/operat
 import { SystemClock, type Clock } from '../../shared/application/clock.js';
 import { createCorrelationContext } from '../../shared/application/correlation-context.js';
 import type { TransactionRunner } from '../../shared/application/transaction-runner.js';
-import type { FailpointPort } from '../../shared/infrastructure/failpoints/failpoint.port.js';
+import type { FailpointPort } from '../../shared/application/failpoints/failpoint.port.js';
 import type { OutboxRepository } from '../application/outbox.repository.js';
-import type { OutboxMessage } from '../domain/outbox-message.js';
+import type { OutboxBlockReason, OutboxMessage } from '../domain/outbox-message.js';
 import type { IntegrationEventPublisher } from './integration-event.publisher.js';
 
 const DEFAULT_BATCH_SIZE = 25;
@@ -20,6 +20,28 @@ const DEFAULT_POLL_INTERVAL_MS = 1_000;
 const DEFAULT_RETRY_BASE_DELAY_MS = 1_000;
 const DEFAULT_RETRY_MAX_DELAY_MS = 60_000;
 const DEFAULT_SHUTDOWN_GRACE_PERIOD_MS = 10_000;
+const DEFAULT_MAX_ATTEMPTS = 10;
+const RETRYABLE_ERROR_NAMES = new Set([
+  'RequestThrottled',
+  'ServiceUnavailable',
+  'ThrottlingException',
+  'TimeoutError',
+]);
+
+function isPermanentPublishFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const metadata = error as Error & {
+    readonly $metadata?: { readonly httpStatusCode?: number };
+    readonly $retryable?: unknown;
+  };
+  if (metadata.$retryable !== undefined || RETRYABLE_ERROR_NAMES.has(error.name)) {
+    return false;
+  }
+  const status = metadata.$metadata?.httpStatusCode;
+  return status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;
+}
 
 export interface OutboxTransactionContext {
   readonly outbox: OutboxRepository;
@@ -34,6 +56,7 @@ export interface OutboxWorkerOptions {
   readonly pollIntervalMs?: number;
   readonly retryBaseDelayMs?: number;
   readonly retryMaxDelayMs?: number;
+  readonly maxAttempts?: number;
   readonly shutdownGracePeriodMs?: number;
   readonly failpoints?: FailpointPort;
   readonly onError?: (error: unknown) => void;
@@ -45,6 +68,7 @@ export interface OutboxWorkerRunResult {
   readonly claimed: number;
   readonly published: number;
   readonly rescheduled: number;
+  readonly blocked: number;
   readonly skipped: number;
 }
 
@@ -57,6 +81,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
   readonly #pollIntervalMs: number;
   readonly #retryBaseDelayMs: number;
   readonly #retryMaxDelayMs: number;
+  readonly #maxAttempts: number;
   readonly #shutdownGracePeriodMs: number;
   readonly #failpoints: FailpointPort | undefined;
   readonly #onError: (error: unknown) => void;
@@ -79,6 +104,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
     this.#pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
     this.#retryBaseDelayMs = options.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
     this.#retryMaxDelayMs = options.retryMaxDelayMs ?? DEFAULT_RETRY_MAX_DELAY_MS;
+    this.#maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
     this.#shutdownGracePeriodMs = options.shutdownGracePeriodMs ?? DEFAULT_SHUTDOWN_GRACE_PERIOD_MS;
     this.#failpoints = options.failpoints;
     this.#onError = options.onError ?? (() => undefined);
@@ -106,7 +132,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
 
   public async runOnce(): Promise<OutboxWorkerRunResult> {
     if (this.#stopping) {
-      return Object.freeze({ claimed: 0, published: 0, rescheduled: 0, skipped: 0 });
+      return Object.freeze({ claimed: 0, published: 0, rescheduled: 0, blocked: 0, skipped: 0 });
     }
 
     const now = this.now();
@@ -115,7 +141,13 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
     const messages = await this.transactionRunner.run(({ outbox }) =>
       outbox.claimDue({ now, leaseToken, leaseExpiresAt, limit: this.#batchSize }),
     );
-    const counts = { claimed: messages.length, published: 0, rescheduled: 0, skipped: 0 };
+    const counts = {
+      claimed: messages.length,
+      published: 0,
+      rescheduled: 0,
+      blocked: 0,
+      skipped: 0,
+    };
 
     for (const message of messages) {
       this.safeLog('outbox_claimed', message);
@@ -139,13 +171,38 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
   private async publishClaimed(
     message: OutboxMessage,
     leaseToken: string,
-    counts: { published: number; rescheduled: number; skipped: number },
+    counts: { published: number; rescheduled: number; blocked: number; skipped: number },
   ): Promise<void> {
     try {
       await this.publisher.publish(message);
     } catch (error: unknown) {
       const state = message.toState();
       const attempts = state.attempts + 1;
+      const blockReason: OutboxBlockReason | null = isPermanentPublishFailure(error)
+        ? 'PERMANENT_PUBLISH_FAILURE'
+        : attempts >= this.#maxAttempts
+          ? 'RETRY_EXHAUSTED'
+          : null;
+      if (blockReason !== null) {
+        const blockedAt = this.now();
+        const blocked = await this.transactionRunner.run(({ outbox }) =>
+          outbox.block(message.id, leaseToken, attempts, blockReason, blockedAt),
+        );
+        if (blocked) {
+          counts.blocked += 1;
+          this.safeLog('outbox_blocked', message, { attempts, blockReason });
+          this.safeMetric(() => {
+            this.#metrics.recordOutboxPublication('blocked');
+          });
+        } else {
+          counts.skipped += 1;
+          this.safeMetric(() => {
+            this.#metrics.recordOutboxPublication('skipped');
+          });
+        }
+        this.#onError(error);
+        return;
+      }
       const retryAt = new Date(this.now().getTime() + this.retryDelayMs(attempts));
       const rescheduled = await this.transactionRunner.run(({ outbox }) =>
         outbox.reschedule(message.id, leaseToken, attempts, retryAt),
@@ -236,6 +293,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
       this.#pollIntervalMs,
       this.#retryBaseDelayMs,
       this.#retryMaxDelayMs,
+      this.#maxAttempts,
     ];
     if (positiveSafeIntegers.some((value) => !Number.isSafeInteger(value) || value < 1)) {
       throw new TypeError('Outbox worker limits must be positive safe integers');
@@ -249,7 +307,11 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private safeLog(event: 'outbox_claimed' | 'published', message: OutboxMessage): void {
+  private safeLog(
+    event: 'outbox_blocked' | 'outbox_claimed' | 'published',
+    message: OutboxMessage,
+    attributes?: Readonly<Record<string, unknown>>,
+  ): void {
     const state = message.toState();
     const envelope = state.payload as Readonly<{
       eventId?: unknown;
@@ -269,6 +331,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
           ...(providerId === undefined ? {} : { providerId }),
           ...(state.causationId === null ? {} : { causationId: state.causationId }),
         }),
+        attributes,
       );
     } catch {
       // Diagnostics must not change publication behavior.

@@ -1,6 +1,10 @@
 import { MikroORM } from '@mikro-orm/postgresql';
 import { Module } from '@nestjs/common';
 
+import {
+  DATABASE_TRANSACTION_OPTIONS,
+  DatabaseTransactionModule,
+} from '../bootstrap/configuration/database-transaction.module.js';
 import type { OperationalLogger } from '../observability/application/operational-logger.js';
 import type { OperationalMetrics } from '../observability/application/operational-metrics.js';
 import { ObservabilityModule } from '../observability/observability.module.js';
@@ -14,6 +18,7 @@ import {
 } from '../shared/application/transaction-runner.js';
 import { AUTHENTICATION_GUARD, NoOpAuthGuard } from '../shared/infrastructure/no-op-auth.guard.js';
 import { MikroOrmTransactionRunner } from '../shared/infrastructure/mikro-orm-transaction-runner.js';
+import type { MikroOrmTransactionRunnerOptions } from '../shared/infrastructure/mikro-orm-transaction-runner.js';
 import { CreateWalletUseCase } from './application/create-wallet.use-case.js';
 import { GetWalletUseCase } from './application/get-wallet.use-case.js';
 import { ListWalletLedgerUseCase } from './application/list-wallet-ledger.use-case.js';
@@ -26,7 +31,7 @@ import { WalletController } from './presentation/wallet.controller.js';
 type WalletRunner = TransactionRunner<WalletTransactionContext>;
 
 @Module({
-  imports: [ObservabilityModule],
+  imports: [DatabaseTransactionModule, ObservabilityModule],
   controllers: [WalletController],
   providers: [
     NoOpAuthGuard,
@@ -37,9 +42,9 @@ type WalletRunner = TransactionRunner<WalletTransactionContext>;
     WalletAuthenticationGuard,
     {
       provide: TRANSACTION_RUNNER,
-      inject: [MikroORM],
-      useFactory: (orm: MikroORM): WalletRunner =>
-        new MikroOrmTransactionRunner(orm, createWalletTransactionContext),
+      inject: [MikroORM, DATABASE_TRANSACTION_OPTIONS],
+      useFactory: (orm: MikroORM, options: MikroOrmTransactionRunnerOptions): WalletRunner =>
+        new MikroOrmTransactionRunner(orm, createWalletTransactionContext, undefined, options),
     },
     {
       provide: CreateWalletUseCase,

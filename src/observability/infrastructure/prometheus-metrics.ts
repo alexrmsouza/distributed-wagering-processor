@@ -1,10 +1,12 @@
-import { Counter, Histogram, register, type Registry } from 'prom-client';
+import { Counter, Gauge, Histogram, register, type Registry } from 'prom-client';
 
 import type {
   DeadLetterMetricReason,
   DuplicateMetricSource,
   OperationalMetrics,
   ProcessingMetricTransport,
+  QueueDepthMetricQueue,
+  QueueDepthMetricState,
   RetryMetricComponent,
   TransactionMetricKind,
   TransactionMetricStatus,
@@ -45,6 +47,9 @@ export class PrometheusMetrics implements OperationalMetrics {
   readonly #inboxProcessing: Counter<'outcome'>;
   readonly #outboxPublications: Counter<'outcome'>;
   readonly #failpoints: Counter<'name'>;
+  readonly #queueDepth: Gauge<'queue' | 'state'>;
+  readonly #queueDepthCollectionFailures: Counter<'queue'>;
+  readonly #queueDepthLastSuccess: Gauge<'queue'>;
 
   public constructor(registry: Registry = register) {
     this.registry = registry;
@@ -168,6 +173,39 @@ export class PrometheusMetrics implements OperationalMetrics {
           registers: [registry],
         }),
     );
+    this.#queueDepth = requiredMetric(
+      registry,
+      'sqs_queue_depth_messages',
+      () =>
+        new Gauge({
+          name: 'sqs_queue_depth_messages',
+          help: 'Approximate SQS queue depth by bounded queue and state',
+          labelNames: ['queue', 'state'],
+          registers: [registry],
+        }),
+    );
+    this.#queueDepthCollectionFailures = requiredMetric(
+      registry,
+      'sqs_queue_depth_collection_failures_total',
+      () =>
+        new Counter({
+          name: 'sqs_queue_depth_collection_failures_total',
+          help: 'Failed SQS queue depth collection attempts',
+          labelNames: ['queue'],
+          registers: [registry],
+        }),
+    );
+    this.#queueDepthLastSuccess = requiredMetric(
+      registry,
+      'sqs_queue_depth_last_success_unixtime_seconds',
+      () =>
+        new Gauge({
+          name: 'sqs_queue_depth_last_success_unixtime_seconds',
+          help: 'Unix timestamp of the last successful SQS queue depth collection',
+          labelNames: ['queue'],
+          registers: [registry],
+        }),
+    );
     this.walletLockMetrics = new PrometheusWalletLockMetrics(registry, () => {
       this.recordLockConflict();
     });
@@ -226,8 +264,10 @@ export class PrometheusMetrics implements OperationalMetrics {
     this.#inboxProcessing.inc({ outcome });
   }
 
-  public recordOutboxPublication(outcome: 'published' | 'rescheduled' | 'skipped'): void {
-    assertMember(outcome, ['published', 'rescheduled', 'skipped'], 'outcome');
+  public recordOutboxPublication(
+    outcome: 'blocked' | 'published' | 'rescheduled' | 'skipped',
+  ): void {
+    assertMember(outcome, ['blocked', 'published', 'rescheduled', 'skipped'], 'outcome');
     this.#outboxPublications.inc({ outcome });
   }
 
@@ -243,6 +283,32 @@ export class PrometheusMetrics implements OperationalMetrics {
       'name',
     );
     this.#failpoints.inc({ name });
+  }
+
+  public setQueueDepth(
+    queue: QueueDepthMetricQueue,
+    state: QueueDepthMetricState,
+    value: number,
+  ): void {
+    assertMember(queue, ['command', 'command_dlq', 'event'], 'queue');
+    assertMember(state, ['available', 'delayed', 'in_flight'], 'state');
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new RangeError('Queue depth must be a non-negative safe integer');
+    }
+    this.#queueDepth.set({ queue, state }, value);
+  }
+
+  public recordQueueDepthCollectionFailure(queue: QueueDepthMetricQueue): void {
+    assertMember(queue, ['command', 'command_dlq', 'event'], 'queue');
+    this.#queueDepthCollectionFailures.inc({ queue });
+  }
+
+  public setQueueDepthLastSuccess(queue: QueueDepthMetricQueue, timestampSeconds: number): void {
+    assertMember(queue, ['command', 'command_dlq', 'event'], 'queue');
+    if (!Number.isSafeInteger(timestampSeconds) || timestampSeconds < 0) {
+      throw new RangeError('Queue depth success timestamp must be a non-negative safe integer');
+    }
+    this.#queueDepthLastSuccess.set({ queue }, timestampSeconds);
   }
 }
 

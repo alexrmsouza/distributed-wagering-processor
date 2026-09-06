@@ -14,7 +14,7 @@ import { NOOP_OPERATIONAL_METRICS } from '../../observability/application/operat
 import { SystemClock, type Clock } from '../../shared/application/clock.js';
 import { createCorrelationContext } from '../../shared/application/correlation-context.js';
 import type { TransactionRunner } from '../../shared/application/transaction-runner.js';
-import type { FailpointPort } from '../../shared/infrastructure/failpoints/failpoint.port.js';
+import type { FailpointPort } from '../../shared/application/failpoints/failpoint.port.js';
 import type { WageringTransactionContext } from '../../wagering/application/ports/wagering-transaction-context.js';
 import type {
   ProcessWagerTransactionResult,

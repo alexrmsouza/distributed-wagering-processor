@@ -10,7 +10,7 @@ import { createCorrelationContext } from '../../shared/application/correlation-c
 import type { TransactionRunner } from '../../shared/application/transaction-runner.js';
 import { Money } from '../../shared/domain/money.js';
 import { hashPayload } from '../../shared/domain/payload-hash.js';
-import type { FailpointPort } from '../../shared/infrastructure/failpoints/failpoint.port.js';
+import type { FailpointPort } from '../../shared/application/failpoints/failpoint.port.js';
 import { WalletLedgerEntry } from '../../wallet/domain/wallet-ledger-entry.js';
 import type { Wallet } from '../../wallet/domain/wallet.js';
 import { FAILURE_CODES, type FailureCode } from '../domain/failure-code.js';

@@ -5,3 +5,4 @@ coverage/
 artifacts/
 bun.lock
 README.md
+docs/openapi.json

@@ -1,9 +1,9 @@
 import { createCorrelationContext } from '../../shared/application/correlation-context.js';
-import type {
-  FailpointName,
-  FailpointPort,
-} from '../../shared/infrastructure/failpoints/failpoint.port.js';
-import { FailpointTriggeredError } from '../../shared/infrastructure/failpoints/failpoint-controller.js';
+import {
+  FailpointTriggeredError,
+  type FailpointName,
+  type FailpointPort,
+} from '../../shared/application/failpoints/failpoint.port.js';
 import type { OperationalLogger } from './operational-logger.js';
 import type { OperationalMetrics } from './operational-metrics.js';
 

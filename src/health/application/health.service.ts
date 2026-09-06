@@ -1,4 +1,4 @@
-import type { ReadinessProbe } from '../infrastructure/readiness.probes.js';
+import type { ReadinessProbe } from './ports/readiness-probe.js';
 
 export interface HealthServiceOptions {
   readonly database: ReadinessProbe;

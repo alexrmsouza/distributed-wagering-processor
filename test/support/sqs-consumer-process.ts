@@ -18,7 +18,7 @@ import { MikroOrmTransactionRunner } from '../../src/shared/infrastructure/mikro
 import type {
   FailpointName,
   FailpointPort,
-} from '../../src/shared/infrastructure/failpoints/failpoint.port.js';
+} from '../../src/shared/application/failpoints/failpoint.port.js';
 import { NOOP_WALLET_LOCK_METRICS } from '../../src/wallet/application/ports/wallet-lock-metrics.js';
 import { ProcessWagerTransactionUseCase } from '../../src/wagering/application/process-wager-transaction.use-case.js';
 import { createWageringTransactionContext } from '../../src/wagering/infrastructure/persistence/wagering-transaction-context.js';

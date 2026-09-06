@@ -1,15 +1,13 @@
-import type { FailpointControlPort, FailpointName, FailpointPort } from './failpoint.port.js';
+import {
+  FailpointTriggeredError,
+  type FailpointControlPort,
+  type FailpointName,
+  type FailpointPort,
+} from '../../application/failpoints/failpoint.port.js';
 
 export interface FailpointConfiguration {
   readonly enabled: boolean;
   readonly environment: string;
-}
-
-export class FailpointTriggeredError extends Error {
-  public constructor(public readonly failpoint: FailpointName) {
-    super(`Failpoint triggered: ${failpoint}`);
-    this.name = 'FailpointTriggeredError';
-  }
 }
 
 export class FailpointController implements FailpointPort, FailpointControlPort {

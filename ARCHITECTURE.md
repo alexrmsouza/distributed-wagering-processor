@@ -15,17 +15,22 @@ dependency-readiness endpoints are executable and covered by automated tests.
 ## Runtime baseline
 
 - Bun is the runtime, package manager, build tool, and test runner.
-- NestJS hosts one backend service.
+- NestJS provides a combined service plus independently executable API and
+  worker composition roots.
 - MikroORM connects the service to PostgreSQL and owns the versioned migration
   entry point.
 - LocalStack provides local AWS SQS queues.
 - Docker Compose runs the application, PostgreSQL, and LocalStack without cloud
   credentials or external infrastructure.
 
-The application reads validated configuration before creating the NestJS
-process. Invalid or incomplete environment configuration fails fast without
-logging credentials. Shutdown hooks coordinate the HTTP server, queue consumer,
-pending-reference worker, and Outbox publisher without replacing the bootstrap.
+The application reads validated configuration before creating a NestJS process.
+Invalid or incomplete environment configuration fails fast without logging
+credentials. The combined root remains the local and evaluator default. The API
+root contains HTTP controllers, health, and metrics without background polling;
+the worker root contains the pending-reference worker, command consumer, and
+Outbox publisher without opening an HTTP server. Both roots reuse the same
+application use cases and persistence adapters. Shutdown hooks remain scoped to
+the components owned by each process.
 
 ## Local Docker workflow
 
@@ -56,6 +61,22 @@ The MikroORM adapter opens a request context and one database transaction, then
 uses a context factory to supply repositories bound to that transactional
 `EntityManager`. Repositories are never acquired globally inside financial use
 cases, and network calls do not belong inside the transaction.
+
+Every runner transaction applies PostgreSQL-local `lock_timeout` and
+`statement_timeout` settings before application work. Defaults are 5 seconds
+and 30 seconds and are validated from environment configuration. The complete
+transaction is retried at most three times only for SQLSTATE `40001`, `40P01`,
+and `55P03`, with bounded deterministic exponential delay starting at 25 ms.
+Each attempt receives a new transaction-scoped `EntityManager`; a failed attempt
+is rolled back before the next one begins. Connection-class failures are not
+retried because commit status can be ambiguous, and `57014` is not retried
+because repeating an overlong statement blindly compounds load.
+
+Executable ESLint boundaries reject framework and adapter dependencies from
+domain code, reject infrastructure dependencies from application code, and
+reject lossy numeric conversion or binary floating-point rounding in financial
+domains. The guardrails are tested against representative violating source
+snippets so future configuration drift fails the unit suite.
 
 Persistence uses explicit MikroORM `EntitySchema` mappings for every persisted
 table. These row types are separate from domain entities; Inbox and Outbox use
@@ -168,10 +189,29 @@ compares the player-account net balance with the operational reconstruction.
 Signed differences are serialized as exact two-decimal strings. Divergence is
 reported and never repaired.
 
+Recurring operational reconciliation may use a persisted checkpoint keyed by
+wallet. The checkpoint stores the verified ledger sequence, entry hash,
+reconstructed balance, currency, and check time. Each incremental pass locks the
+wallet first, validates the checkpoint against the persisted ledger anchor, and
+verifies only the suffix plus the current full accounting view. A missing
+checkpoint causes a full scan. An invalid anchor or suffix also causes a full
+scan; a clean full result rebuilds the checkpoint, while any financial or audit
+divergence deletes it. The checkpoint is therefore a discardable accelerator,
+never a correctness authority. `verify:reconciliation` continues to reconstruct
+every wallet from zero and is the final read-only verification command.
+
 `POST /wallets`, wallet retrieval, ledger retrieval, and reconciliation use the
 explicit authentication guard extension point. Public Money is always serialized
 as `{ amount: string, currency: string }`; malformed inputs and cursors are 400,
 unknown wallets are 404, and duplicate player/currency wallets are 409.
+
+The API and combined composition roots expose a deterministic OpenAPI 3.1
+document at `GET /docs/openapi.json` and self-contained local documentation at
+`GET /docs`. Shared Zod transport schemas generate the component schemas, while
+a controller-metadata test proves that every executable public HTTP route is in
+the document. `docs/openapi.json` is versioned, contains no runtime timestamps or
+environment-dependent values, and `openapi:check` rejects drift. The worker-only
+composition root imports neither documentation controller.
 
 ## Reversal and pending-reference processing
 
@@ -332,6 +372,23 @@ poll loop, and gives active work a bounded grace period. Already published work
 may complete its conditional mark; unmarked claims remain recoverable after
 lease expiration.
 
+Errors explicitly marked retryable, timeouts, throttling, server failures, and
+unknown failures retry conservatively. A non-retryable HTTP 4xx publication
+failure blocks the row immediately; a retryable failure blocks it after the
+configured bounded attempt limit, which defaults to ten. Only the allowlisted
+reasons `PERMANENT_PUBLISH_FAILURE` and `RETRY_EXHAUSTED` are persisted or logged;
+raw broker errors and payloads are not retained. A blocked unpublished head is
+excluded from claims but remains visible to the earlier-row predicate, so it
+continues to prevent overtaking within its aggregate while unrelated aggregates
+progress.
+
+Replay is an explicit local operator command, never an HTTP endpoint:
+`bun run outbox:replay -- --outbox-id=<uuid> --operator=<identity>`. It locks the
+blocked row, appends an immutable audit row with the sanitized prior reason,
+attempt count, operator identity, and timestamp, then clears the block and makes
+the event immediately eligible in the same transaction. Concurrent or repeated
+replay requests cannot create multiple audit records for one blocked state.
+
 The guarded `after_outbox_claim_before_publish` failpoint terminates after the
 claim commit and before network I/O. The guarded
 `after_sqs_publish_before_outbox_mark_published` failpoint terminates after SQS
@@ -387,13 +444,25 @@ The registered measurements are:
 - `outbox_lag_seconds` and `outbox_publications_total{outcome}`;
 - `inbox_processing_total{outcome}`;
 - `wallet_reconciliation_divergences_total`;
-- `failpoint_activations_total{name}`.
+- `failpoint_activations_total{name}`;
+- `sqs_queue_depth_messages{queue,state}`,
+  `sqs_queue_depth_collection_failures_total{queue}`, and
+  `sqs_queue_depth_last_success_unixtime_seconds{queue}`.
 
 Every label is checked against a finite enumeration. Wallet, player, provider,
 message, transaction, event, correlation, and causation identifiers; money;
 URLs; exception messages; and other user-controlled values are never labels.
 Histogram buckets are fixed, and no correlation identifier is registered with
 Prometheus.
+
+The API and combined processes sample the command, command-DLQ, and event queues
+every 15 seconds by default. Each sample reads only SQS approximate available,
+in-flight, and delayed counts with a two-second timeout. Collection is
+non-overlapping and best-effort: a queue-specific failure increments a bounded
+counter while preserving its last successful gauge values. Queue URLs, account
+identities, and provider errors are never labels or log attributes. The
+worker-only process does not run this collector because it does not expose the
+metrics endpoint.
 
 `GET /health/live` is public and reports only process and HTTP responsiveness;
 dependency failure cannot make it unhealthy. `GET /health/ready` is also public

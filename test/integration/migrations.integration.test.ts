@@ -8,8 +8,10 @@ const EXPECTED_TABLES = [
   'accounts',
   'inbox_messages',
   'outbox_messages',
+  'outbox_replay_audit',
   'wager_transactions',
   'wallet_ledger_entries',
+  'wallet_reconciliation_checkpoints',
   'wallets',
 ];
 
@@ -26,7 +28,7 @@ test('applies and reverses every financial migration', async () => {
       `select table_name
          from information_schema.tables
         where table_schema = 'public'
-          and table_name in (?, ?, ?, ?, ?, ?, ?, ?)
+          and table_name in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         order by table_name`,
       EXPECTED_TABLES,
     );
@@ -40,7 +42,7 @@ test('applies and reverses every financial migration', async () => {
       `select table_name
          from information_schema.tables
         where table_schema = 'public'
-          and table_name in (?, ?, ?, ?, ?, ?, ?, ?)`,
+          and table_name in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       EXPECTED_TABLES,
     );
 

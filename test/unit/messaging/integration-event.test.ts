@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { IntegrationEvent } from '../../../src/messaging/application/integration-event.js';
+import { IntegrationEvent } from '../../../src/messaging/domain/integration-event.js';
 import { WalletOpenedEvent } from '../../../src/messaging/application/events/wallet-opened.event.js';
 import {
   WagerTransactionPendingReferenceEvent,

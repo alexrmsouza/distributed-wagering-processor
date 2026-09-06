@@ -14,7 +14,7 @@ import {
 } from '../shared/application/transaction-runner.js';
 import type { WageringTransactionContext } from '../wagering/application/ports/wagering-transaction-context.js';
 import { ProcessWagerTransactionUseCase } from '../wagering/application/process-wager-transaction.use-case.js';
-import { WageringModule } from '../wagering/wagering.module.js';
+import { WageringCoreModule } from '../wagering/wagering-core.module.js';
 import { ConsumerShutdownCoordinator } from './infrastructure/consumer-shutdown.js';
 import { SqsIntegrationEventPublisher } from './infrastructure/integration-event.publisher.js';
 import { OutboxWorker } from './infrastructure/outbox.worker.js';
@@ -30,7 +30,7 @@ const SQS_CLIENT = Symbol('SQS_CLIENT');
 type WageringRunner = TransactionRunner<WageringTransactionContext>;
 
 @Module({
-  imports: [WageringModule, ObservabilityModule],
+  imports: [WageringCoreModule, ObservabilityModule],
   providers: [
     {
       provide: SQS_CLIENT,
@@ -96,6 +96,7 @@ type WageringRunner = TransactionRunner<WageringTransactionContext>;
           leaseDurationMs: environment.OUTBOX_PUBLISHER_LEASE_DURATION_MS,
           pollIntervalMs: environment.OUTBOX_PUBLISHER_POLL_INTERVAL_MS,
           shutdownGracePeriodMs: environment.OUTBOX_PUBLISHER_SHUTDOWN_GRACE_PERIOD_MS,
+          maxAttempts: environment.OUTBOX_PUBLISHER_MAX_ATTEMPTS,
           logger,
           metrics,
         }),

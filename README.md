@@ -786,13 +786,28 @@ bun run migration:up
 bun run start
 ```
 
-O serviço atende em `http://127.0.0.1:3000`. Use os contratos completos das seções 9 e 10 para criar uma wallet e submeter comandos por HTTP ou SQS. Os endpoints operacionais públicos são:
+`bun run start` mantém o modo combinado, adequado ao fluxo local e à verificação completa. Em ambientes que exigem escala e isolamento independentes, os papéis podem ser executados separadamente:
+
+```powershell
+bun run start:api
+bun run start:worker
+```
+
+O processo de API não inicia consumers, o worker de referências pendentes ou o publisher de Outbox. O processo de worker não abre servidor HTTP. Ambos usam os mesmos casos de uso, portas transacionais e adaptadores persistentes; não existem caminhos de processamento financeiro duplicados.
+
+O serviço HTTP atende em `http://127.0.0.1:3000`. Use os contratos completos das seções 9 e 10 para criar uma wallet e submeter comandos por HTTP ou SQS. Os endpoints operacionais públicos são:
 
 ```text
 GET /health/live
 GET /health/ready
 GET /metrics
+GET /docs
+GET /docs/openapi.json
 ```
+
+`GET /docs` serve uma interface local autocontida, sem CDN. O contrato OpenAPI
+3.1 versionado está em `docs/openapi.json`; `bun run openapi:check` falha se as
+rotas, schemas ou exemplos executáveis divergirem do artefato gerado.
 
 O bootstrap do LocalStack cria as filas FIFO de comandos, DLQ e eventos. Comandos SQS usam `walletId` como `MessageGroupId` e o `messageId` imutável como `MessageDeduplicationId`. Eventos publicados usam `aggregateId` e `eventId`, respectivamente. HTTP e SQS convergem no mesmo processamento financeiro e nas mesmas identidades persistidas.
 
@@ -814,11 +829,21 @@ bun run test:integration
 bun run test:concurrency
 bun run test:resilience
 bun run test:load
+bun run test:openapi
+bun run openapi:check
+bun run reconcile:incremental
 bun run verify:reconciliation
 bun run verify:evidence
 ```
 
-`verify:reconciliation` é somente leitura e falha ao detectar divergência entre saldo materializado, ledger operacional, contabilidade ou cadeia de auditoria. `test:load` usa seed determinística, três processos reais, tráfego HTTP/SQS, uma hot wallet, wallets independentes, pelo menos cinquenta duplicatas e uma reversão fora de ordem. Correção é o critério de aprovação; não existe mínimo artificial de RPS.
+`reconcile:incremental` mantém checkpoints verificáveis para reduzir o custo das
+execuções operacionais recorrentes. Se a âncora ou o sufixo for inválido, ele
+refaz a leitura completa; qualquer divergência invalida o checkpoint. Esse
+comando é uma otimização, não substitui `verify:reconciliation`, que reconstrói
+todo o histórico, é somente leitura e falha ao detectar divergência entre saldo
+materializado, ledger operacional, contabilidade ou cadeia de auditoria.
+
+`test:load` usa seed determinística, três processos reais, tráfego HTTP/SQS, uma hot wallet, wallets independentes, pelo menos cinquenta duplicatas e uma reversão fora de ordem. Correção é o critério de aprovação; não existe mínimo artificial de RPS.
 
 Os relatórios locais são escritos em `artifacts/load/<runId>/` e `artifacts/verification/<runId>/` nos formatos JSON e Markdown. `artifacts/` é descartável e ignorado pelo Git. Os relatórios registram seed, composição do cenário, processos, throughput, p50/p95/p99, resultados, erros transitórios, contenção, Outbox e reconciliação sem incluir dinheiro, payloads, credenciais, connection strings ou receipt handles.
 
@@ -835,6 +860,22 @@ Em caso de falha:
 3. execute `bun run verify:reconciliation` antes de qualquer diagnóstico corretivo;
 4. consulte o resumo em `artifacts/verification/<runId>/summary.md` para localizar o primeiro gate que falhou;
 5. preserve volumes e filas compartilhados; os testes isolam bancos, filas e identidades e não dependem de limpeza global destrutiva.
+
+Um evento de Outbox com falha permanente, ou que atingir o limite configurado
+de tentativas, entra em estado operacional bloqueado com um motivo enumerado e
+sanitizado. Ele continua bloqueando eventos posteriores da mesma wallet, sem
+impedir outras wallets. Depois de corrigir a causa, o replay explícito e
+auditável é:
+
+```powershell
+bun run outbox:replay -- --outbox-id=<uuid> --operator=<identidade-operacional>
+```
+
+O comando aceita somente uma mensagem bloqueada, registra uma auditoria
+imutável no PostgreSQL e não expõe endpoint administrativo. Nunca use erro bruto,
+payload, URL de fila ou credencial como identidade do operador.
+
+Cada transação de aplicação usa `lock_timeout` e `statement_timeout` locais, configuráveis pelas variáveis `DATABASE_LOCK_TIMEOUT_MS` e `DATABASE_STATEMENT_TIMEOUT_MS`. Somente deadlock, serialization failure e lock timeout do PostgreSQL repetem a transação inteira, com `DATABASE_TRANSACTION_MAX_ATTEMPTS` limitado e backoff definido por `DATABASE_TRANSACTION_RETRY_BASE_DELAY_MS`. Falhas de conexão e statement timeout não são repetidas automaticamente, evitando resultado de commit ambíguo e trabalho longo reiterado às cegas.
 
 Encerrar o serviço ou os processos de teste é seguro: novos polls e claims param, trabalho confirmado conclui dentro do grace period e leases ou receipts não confirmados ficam recuperáveis. Não use `docker compose down -v` como rotina de validação, pois isso removeria estado compartilhado sem necessidade.
 

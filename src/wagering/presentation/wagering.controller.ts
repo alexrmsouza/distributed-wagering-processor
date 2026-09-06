@@ -10,8 +10,13 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { z } from 'zod';
 
+import {
+  idempotencyKeySchema,
+  providerIdentifierSchema,
+  transactionIdSchema,
+  wagerRequestSchema,
+} from '../../api-documentation/http-contract.schemas.js';
 import { Money } from '../../shared/domain/money.js';
 import { toHttpException } from '../../shared/infrastructure/http-error.filter.js';
 import { GetProviderWagerTransactionUseCase } from '../application/get-provider-wager-transaction.use-case.js';
@@ -19,28 +24,6 @@ import { GetWagerTransactionUseCase } from '../application/get-wager-transaction
 import { ProcessWagerTransactionUseCase } from '../application/process-wager-transaction.use-case.js';
 import { WageringAuthenticationGuard } from './wagering-authentication.guard.js';
 import { WagerTransactionPresenter } from './wager-transaction.presenter.js';
-
-const wagerRequestSchema = z
-  .object({
-    providerId: z.string().trim().min(1).max(128),
-    externalTransactionId: z.string().trim().min(1).max(255),
-    playerId: z.uuid(),
-    walletId: z.uuid(),
-    roundId: z.string().trim().min(1).max(255),
-    gameId: z.string().trim().min(1).max(255),
-    kind: z.enum(['BET', 'WIN', 'LOSS', 'REFUND', 'ROLLBACK']),
-    money: z
-      .object({
-        amount: z.string(),
-        currency: z.string(),
-      })
-      .strict(),
-    referenceExternalTransactionId: z.string().trim().min(1).max(255).optional(),
-  })
-  .strict();
-const transactionIdSchema = z.uuid();
-const providerIdentifierSchema = z.string().trim().min(1).max(255);
-const idempotencyKeySchema = z.string().trim().min(1).max(255);
 
 @Controller()
 @UseGuards(WageringAuthenticationGuard)

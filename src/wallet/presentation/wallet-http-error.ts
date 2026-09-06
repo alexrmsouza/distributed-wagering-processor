@@ -1,4 +1,5 @@
 import { HttpException } from '@nestjs/common';
+import { ZodError } from 'zod';
 
 import { DomainError } from '../../shared/domain/domain-error.js';
 import {
@@ -20,7 +21,8 @@ export function toWalletHttpException(error: unknown): HttpException {
   if (
     error instanceof InvalidLedgerCursorError ||
     (error instanceof DomainError && error.code === 'INVALID_PAYLOAD') ||
-    error instanceof TypeError
+    error instanceof TypeError ||
+    error instanceof ZodError
   ) {
     const message = error instanceof Error ? error.message : 'Request payload is invalid';
     return new HttpException({ failureCode: 'INVALID_PAYLOAD', message }, 400);

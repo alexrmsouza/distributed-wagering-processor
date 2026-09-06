@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { describe, expect, test } from 'bun:test';
 
-import { IntegrationEvent } from '../../../src/messaging/application/integration-event.js';
+import { IntegrationEvent } from '../../../src/messaging/domain/integration-event.js';
 import type { OutboxRepository } from '../../../src/messaging/application/outbox.repository.js';
 import { OutboxMessage } from '../../../src/messaging/domain/outbox-message.js';
 import { SqsIntegrationEventPublisher } from '../../../src/messaging/infrastructure/integration-event.publisher.js';
@@ -35,6 +35,13 @@ class FakeOutboxRepository implements OutboxRepository {
     leaseToken: string;
     publishedAt: Date;
   }[] = [];
+  public readonly blocks: {
+    outboxId: string;
+    leaseToken: string;
+    attempts: number;
+    reason: 'PERMANENT_PUBLISH_FAILURE' | 'RETRY_EXHAUSTED';
+    blockedAt: Date;
+  }[] = [];
 
   public constructor(private readonly claims: readonly OutboxMessage[]) {}
 
@@ -59,6 +66,21 @@ class FakeOutboxRepository implements OutboxRepository {
   ): Promise<boolean> {
     this.reschedules.push({ outboxId, leaseToken, attempts, nextAttemptAt });
     return Promise.resolve(true);
+  }
+
+  public block(
+    outboxId: string,
+    leaseToken: string,
+    attempts: number,
+    reason: 'PERMANENT_PUBLISH_FAILURE' | 'RETRY_EXHAUSTED',
+    blockedAt: Date,
+  ): Promise<boolean> {
+    this.blocks.push({ outboxId, leaseToken, attempts, reason, blockedAt });
+    return Promise.resolve(true);
+  }
+
+  public replayBlocked(): Promise<boolean> {
+    return Promise.resolve(false);
   }
 }
 
@@ -103,6 +125,7 @@ describe('OutboxWorker', () => {
       claimed: 1,
       published: 0,
       rescheduled: 1,
+      blocked: 0,
       skipped: 0,
     });
     expect(repository.reschedules).toEqual([
@@ -114,6 +137,56 @@ describe('OutboxWorker', () => {
       },
     ]);
     expect(repository.publications).toEqual([]);
+  });
+
+  test('blocks a permanent publishing failure using only a sanitized reason', async () => {
+    const pending = message();
+    const repository = new FakeOutboxRepository([pending]);
+    const error = Object.assign(new Error('credential and payload must not be persisted'), {
+      $metadata: { httpStatusCode: 403 },
+    });
+    const worker = new OutboxWorker(
+      runner(repository),
+      { publish: () => Promise.reject(error) },
+      { clock: new FixedClock(), generateLeaseToken: () => randomUUID() },
+    );
+
+    expect(await worker.runOnce()).toEqual({
+      claimed: 1,
+      published: 0,
+      rescheduled: 0,
+      blocked: 1,
+      skipped: 0,
+    });
+    expect(repository.blocks).toHaveLength(1);
+    expect(repository.blocks[0]).toMatchObject({
+      outboxId: pending.id,
+      attempts: 1,
+      reason: 'PERMANENT_PUBLISH_FAILURE',
+      blockedAt: NOW,
+    });
+    expect(repository.blocks[0]?.leaseToken).toMatch(/^[0-9a-f-]{36}$/);
+    expect(JSON.stringify(repository.blocks)).not.toContain(error.message);
+  });
+
+  test('blocks a retryable failure after the configured attempt limit', async () => {
+    const pending = message(2);
+    const repository = new FakeOutboxRepository([pending]);
+    const worker = new OutboxWorker(
+      runner(repository),
+      { publish: () => Promise.reject(new Error('temporary failure')) },
+      {
+        clock: new FixedClock(),
+        generateLeaseToken: () => randomUUID(),
+        maxAttempts: 3,
+      },
+    );
+
+    const result = await worker.runOnce();
+
+    expect(result.blocked).toBe(1);
+    expect(repository.blocks[0]?.reason).toBe('RETRY_EXHAUSTED');
+    expect(repository.reschedules).toEqual([]);
   });
 });
 

@@ -2,10 +2,7 @@ import { GetQueueAttributesCommand, type SQSClient } from '@aws-sdk/client-sqs';
 import type { MikroORM } from '@mikro-orm/postgresql';
 import type { OnModuleDestroy } from '@nestjs/common';
 
-export interface ReadinessProbe {
-  check(): Promise<void>;
-  onModuleDestroy?(): void | Promise<void>;
-}
+import type { ReadinessProbe } from '../application/ports/readiness-probe.js';
 
 export class PostgresReadinessProbe implements ReadinessProbe {
   public constructor(private readonly orm: MikroORM) {}

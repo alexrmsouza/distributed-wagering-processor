@@ -168,6 +168,7 @@ export function createVerificationPlan(runtime: DockerRuntime): readonly Verific
     step('lint', 180_000, bun('run', 'lint')),
     step('typecheck', 180_000, bun('run', 'typecheck')),
     step('build', 180_000, bun('run', 'build')),
+    step('openapi', 180_000, bun('run', 'openapi:check'), bun('run', 'test:openapi')),
     step('unit', 600_000, bun('run', 'test:unit')),
     step('integration', 1_200_000, bun('run', 'test:integration')),
     step(

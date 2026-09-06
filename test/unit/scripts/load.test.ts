@@ -7,6 +7,26 @@ import {
   type LoadPlanConfiguration,
 } from '../../../scripts/load.js';
 
+function collectDiagnosticShape(
+  value: unknown,
+  keys = new Set<string>(),
+  strings = new Set<string>(),
+): Readonly<{ keys: ReadonlySet<string>; strings: ReadonlySet<string> }> {
+  if (typeof value === 'string') {
+    strings.add(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) {
+      collectDiagnosticShape(item, keys, strings);
+    }
+  } else if (typeof value === 'object' && value !== null) {
+    for (const [key, item] of Object.entries(value)) {
+      keys.add(key);
+      collectDiagnosticShape(item, keys, strings);
+    }
+  }
+  return Object.freeze({ keys, strings });
+}
+
 const configuration: LoadPlanConfiguration = {
   seed: 'distributed-load-seed',
   runId: 'run-a',
@@ -177,9 +197,12 @@ describe('seeded load generator', () => {
     expect(result.traffic.terminalLatencyMs).toHaveLength(20);
     expect(result.outcomes.processed).toBe(20);
     expect(result.samples).toHaveLength(20);
-    expect(JSON.stringify(result)).not.toContain('amount');
-    expect(JSON.stringify(result)).not.toContain('money');
-    expect(JSON.stringify(result)).not.toContain('1.00');
+    const diagnostics = collectDiagnosticShape(result);
+    expect(diagnostics.keys).not.toContain('amount');
+    expect(diagnostics.keys).not.toContain('money');
+    expect(diagnostics.keys).not.toContain('payload');
+    expect(diagnostics.keys).not.toContain('command');
+    expect(diagnostics.strings).not.toContain('1.00');
   });
 
   test('separates transient attempts from completed terminal operations', async () => {

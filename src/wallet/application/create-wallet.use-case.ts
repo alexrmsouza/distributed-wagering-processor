@@ -6,7 +6,7 @@ import { AccountingPosting } from '../../accounting/domain/accounting-posting.js
 import { OutboxMessage } from '../../messaging/domain/outbox-message.js';
 import { SystemClock, type Clock } from '../../shared/application/clock.js';
 import type { TransactionRunner } from '../../shared/application/transaction-runner.js';
-import type { FailpointPort } from '../../shared/infrastructure/failpoints/failpoint.port.js';
+import type { FailpointPort } from '../../shared/application/failpoints/failpoint.port.js';
 import { Money } from '../../shared/domain/money.js';
 import { hashPayload } from '../../shared/domain/payload-hash.js';
 import { WalletLedgerEntry } from '../domain/wallet-ledger-entry.js';

@@ -40,6 +40,10 @@ test('round-trips an Outbox message without losing lease or event data', () => {
     leaseToken: 'lease-1',
     leaseExpiresAt: new Date('2026-09-04T12:00:30.000Z'),
     publishedAt: null,
+    blockedAt: null,
+    lastBlockReason: null,
+    replayCount: 0,
+    lastReplayedAt: null,
   });
 
   const row = OutboxMessageMapper.toRow(message);

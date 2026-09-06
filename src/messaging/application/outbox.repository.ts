@@ -1,5 +1,5 @@
 import type { TransactionBoundRepository } from '../../shared/application/transaction-runner.js';
-import type { OutboxMessage } from '../domain/outbox-message.js';
+import type { OutboxBlockReason, OutboxMessage } from '../domain/outbox-message.js';
 
 export interface ClaimDueOutboxMessages {
   readonly now: Date;
@@ -18,4 +18,12 @@ export interface OutboxRepository extends TransactionBoundRepository {
     attempts: number,
     nextAttemptAt: Date,
   ): Promise<boolean>;
+  block(
+    outboxId: string,
+    leaseToken: string,
+    attempts: number,
+    reason: OutboxBlockReason,
+    blockedAt: Date,
+  ): Promise<boolean>;
+  replayBlocked(outboxId: string, operatorId: string, replayedAt: Date): Promise<boolean>;
 }

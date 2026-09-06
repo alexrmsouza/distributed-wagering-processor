@@ -11,7 +11,7 @@ import {
   test,
 } from 'bun:test';
 
-import { IntegrationEvent } from '../../src/messaging/application/integration-event.js';
+import { IntegrationEvent } from '../../src/messaging/domain/integration-event.js';
 import { OutboxMessage } from '../../src/messaging/domain/outbox-message.js';
 import { MikroOrmOutboxRepository } from '../../src/messaging/infrastructure/outbox.repository.js';
 import {
@@ -97,6 +97,84 @@ afterEach(async () => {
 });
 
 describe('Transactional Outbox lease claims', () => {
+  test('keeps a blocked aggregate head ordered while independent aggregates progress', async () => {
+    const now = new Date('2026-09-05T15:00:00.000Z');
+    const blockedAggregateId = randomUUID();
+    const blockedHead = outboxMessage({
+      aggregateId: blockedAggregateId,
+      occurredAt: new Date(now.getTime() - 3_000),
+    });
+    const blockedFollower = outboxMessage({
+      aggregateId: blockedAggregateId,
+      occurredAt: new Date(now.getTime() - 2_000),
+    });
+    const independent = outboxMessage({
+      aggregateId: randomUUID(),
+      occurredAt: new Date(now.getTime() - 1_000),
+    });
+    await insert(blockedHead, blockedFollower, independent);
+
+    const leaseToken = randomUUID();
+    await withOutbox(async (repository) => {
+      await repository.claimDue({
+        now,
+        leaseToken,
+        leaseExpiresAt: new Date(now.getTime() + 30_000),
+        limit: 1,
+      });
+      expect(
+        await repository.block(blockedHead.id, leaseToken, 1, 'PERMANENT_PUBLISH_FAILURE', now),
+      ).toBe(true);
+    });
+
+    const claims = await withOutbox((repository) =>
+      repository.claimDue({
+        now,
+        leaseToken: randomUUID(),
+        leaseExpiresAt: new Date(now.getTime() + 30_000),
+        limit: 10,
+      }),
+    );
+    expect(claims.map(({ id }) => id)).toEqual([independent.id]);
+
+    await withOutbox(async (repository) => {
+      expect(await repository.replayBlocked(blockedHead.id, 'operator-1', now)).toBe(true);
+    });
+    const replayClaims = await withOutbox((repository) =>
+      repository.claimDue({
+        now,
+        leaseToken: randomUUID(),
+        leaseExpiresAt: new Date(now.getTime() + 30_000),
+        limit: 10,
+      }),
+    );
+    expect(replayClaims.map(({ id }) => id)).toEqual([blockedHead.id]);
+
+    const audit = await context()
+      .orm.em.getConnection()
+      .execute<
+        {
+          outbox_id: string;
+          operator_id: string;
+          blocked_reason: string;
+          previous_attempts: number;
+        }[]
+      >(
+        `select outbox_id, operator_id, blocked_reason, previous_attempts
+         from outbox_replay_audit
+        where outbox_id = ?`,
+        [blockedHead.id],
+      );
+    expect(audit).toEqual([
+      {
+        outbox_id: blockedHead.id,
+        operator_id: 'operator-1',
+        blocked_reason: 'PERMANENT_PUBLISH_FAILURE',
+        previous_attempts: 1,
+      },
+    ]);
+  });
+
   test('claims only the earliest unpublished event per aggregate while independent aggregates progress', async () => {
     const now = new Date('2026-09-04T12:00:00.000Z');
     const firstAggregateId = randomUUID();

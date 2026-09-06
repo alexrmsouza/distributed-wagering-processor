@@ -257,12 +257,14 @@ describe('PostgreSQL financial invariants', () => {
           and indexname in (
             'wager_transactions_pending_reference_due_idx',
             'outbox_messages_publishable_idx',
+            'outbox_messages_blocked_idx',
             'wallet_ledger_entries_cursor_idx'
           )
         order by indexname`,
       );
 
     expect(indexes.map(({ indexname }) => indexname)).toEqual([
+      'outbox_messages_blocked_idx',
       'outbox_messages_publishable_idx',
       'wager_transactions_pending_reference_due_idx',
       'wallet_ledger_entries_cursor_idx',
@@ -270,6 +272,59 @@ describe('PostgreSQL financial invariants', () => {
     expect(
       indexes.find(({ indexname }) => indexname === 'outbox_messages_publishable_idx')?.indexdef,
     ).toContain('lease_expires_at');
+    expect(
+      indexes.find(({ indexname }) => indexname === 'outbox_messages_publishable_idx')?.indexdef,
+    ).toContain('blocked_at IS NULL');
+  });
+
+  test('enforces sanitized blocked state and immutable replay audit rows', async () => {
+    const outboxId = randomUUID();
+    await context.orm.em.getConnection().execute(
+      `insert into outbox_messages
+         (id, event_id, aggregate_id, event_type, version, payload, correlation_id,
+          occurred_at, attempts, next_attempt_at)
+       values (?, ?, ?, 'TestEvent', 1, '{}', ?, now(), 0, now())`,
+      [outboxId, randomUUID(), randomUUID(), randomUUID()],
+    );
+
+    await expectDatabaseRejection(() =>
+      context.orm.em
+        .getConnection()
+        .execute('update outbox_messages set blocked_at = now() where id = ?', [outboxId]),
+    );
+    await expectDatabaseRejection(() =>
+      context.orm.em.getConnection().execute(
+        `update outbox_messages
+            set blocked_at = now(), last_block_reason = 'RAW_PROVIDER_ERROR'
+          where id = ?`,
+        [outboxId],
+      ),
+    );
+
+    await context.orm.em.getConnection().execute(
+      `update outbox_messages
+          set attempts = 1, blocked_at = now(),
+              last_block_reason = 'PERMANENT_PUBLISH_FAILURE'
+        where id = ?`,
+      [outboxId],
+    );
+    const auditId = randomUUID();
+    await context.orm.em.getConnection().execute(
+      `insert into outbox_replay_audit
+         (id, outbox_id, operator_id, blocked_reason, previous_attempts, replayed_at)
+       values (?, ?, 'ops.on-call', 'PERMANENT_PUBLISH_FAILURE', 1, now())`,
+      [auditId, outboxId],
+    );
+    await expectDatabaseRejection(() =>
+      context.orm.em
+        .getConnection()
+        .execute("update outbox_replay_audit set operator_id = 'other' where id = ?", [auditId]),
+    );
+    await expectDatabaseRejection(() =>
+      context.orm.em
+        .getConnection()
+        .execute('delete from outbox_replay_audit where id = ?', [auditId]),
+    );
   });
 
   test('rejects a first ledger entry that hides a non-zero opening balance', async () => {

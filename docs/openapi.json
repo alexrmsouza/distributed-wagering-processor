@@ -1,0 +1,1576 @@
+{
+  "components": {
+    "schemas": {
+      "CreateWalletRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "initialBalance": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "pattern": "^\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "playerId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "playerId",
+          "initialBalance"
+        ],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "failureCode": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "failureCode",
+          "message"
+        ],
+        "type": "object"
+      },
+      "LedgerPageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "amount": {
+                      "pattern": "^\\d+\\.\\d{2}$",
+                      "type": "string"
+                    },
+                    "currency": {
+                      "pattern": "^[A-Z]{3}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "amount",
+                    "currency"
+                  ],
+                  "type": "object"
+                },
+                "balanceAfter": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "amount": {
+                      "pattern": "^\\d+\\.\\d{2}$",
+                      "type": "string"
+                    },
+                    "currency": {
+                      "pattern": "^[A-Z]{3}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "amount",
+                    "currency"
+                  ],
+                  "type": "object"
+                },
+                "balanceBefore": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "amount": {
+                      "pattern": "^\\d+\\.\\d{2}$",
+                      "type": "string"
+                    },
+                    "currency": {
+                      "pattern": "^[A-Z]{3}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "amount",
+                    "currency"
+                  ],
+                  "type": "object"
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                  "type": "string"
+                },
+                "direction": {
+                  "enum": [
+                    "CREDIT",
+                    "DEBIT"
+                  ],
+                  "type": "string"
+                },
+                "entryHash": {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                "entrySequence": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "previousEntryHash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "transactionId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "walletId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "walletId",
+                "transactionId",
+                "entrySequence",
+                "direction",
+                "amount",
+                "balanceBefore",
+                "balanceAfter",
+                "previousEntryHash",
+                "entryHash",
+                "createdAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "LivenessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "PublicMoney": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^\\d+\\.\\d{2}$",
+            "type": "string"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "additionalProperties": false,
+            "properties": {
+              "database": {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "up",
+                      "down"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status"
+                ],
+                "type": "object"
+              },
+              "sqs": {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "up",
+                      "down"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "database",
+              "sqs"
+            ],
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "not_ready"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ],
+        "type": "object"
+      },
+      "ReconciliationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "accountingBalance": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "pattern": "^\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "accountingBalanced": {
+            "type": "boolean"
+          },
+          "auditChainValid": {
+            "type": "boolean"
+          },
+          "calculatedBalance": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "pattern": "^\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "checkedEntries": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "consistent": {
+            "type": "boolean"
+          },
+          "difference": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "storedBalance": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "pattern": "^\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "walletId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "walletId",
+          "storedBalance",
+          "calculatedBalance",
+          "accountingBalance",
+          "difference",
+          "consistent",
+          "checkedEntries",
+          "accountingBalanced",
+          "auditChainValid"
+        ],
+        "type": "object"
+      },
+      "SignedMoney": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "type": "string"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "WagerOutcomeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "pattern": "^\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "failureCode": {
+            "type": "string"
+          },
+          "idempotentReplay": {
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "FAILED",
+              "PENDING_REFERENCE",
+              "PROCESSED",
+              "REJECTED"
+            ],
+            "type": "string"
+          },
+          "transactionId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transactionId",
+          "status",
+          "balance",
+          "idempotentReplay"
+        ],
+        "type": "object"
+      },
+      "WagerRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "externalTransactionId": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "gameId": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "BET",
+              "WIN",
+              "LOSS",
+              "REFUND",
+              "ROLLBACK"
+            ],
+            "type": "string"
+          },
+          "money": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "pattern": "^\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "playerId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "providerId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "referenceExternalTransactionId": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "roundId": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "walletId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "providerId",
+          "externalTransactionId",
+          "playerId",
+          "walletId",
+          "roundId",
+          "gameId",
+          "kind",
+          "money"
+        ],
+        "type": "object"
+      },
+      "WagerTransactionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "type": "string"
+          },
+          "externalTransactionId": {
+            "type": "string"
+          },
+          "failureCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gameId": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "BET",
+              "WIN",
+              "LOSS",
+              "REFUND",
+              "ROLLBACK"
+            ],
+            "type": "string"
+          },
+          "money": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "pattern": "^\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "observedBalance": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "amount": {
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "type": "string"
+                  },
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playerId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "processedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "referenceExternalTransactionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "referenceTransactionId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roundId": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "FAILED",
+              "PENDING_REFERENCE",
+              "PROCESSED",
+              "REJECTED"
+            ],
+            "type": "string"
+          },
+          "transactionId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "walletId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transactionId",
+          "providerId",
+          "externalTransactionId",
+          "idempotencyKey",
+          "walletId",
+          "playerId",
+          "roundId",
+          "gameId",
+          "kind",
+          "money",
+          "referenceExternalTransactionId",
+          "referenceTransactionId",
+          "status",
+          "failureCode",
+          "observedBalance",
+          "processedAt",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "WalletResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "pattern": "^\\d+\\.\\d{2}$",
+                "type": "string"
+              },
+              "currency": {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "playerId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "version": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "playerId",
+          "balance",
+          "version"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "HTTP contract for wallet, wagering, reconciliation, and operational endpoints.",
+    "title": "Distributed Wagering Processor API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/docs": {
+      "get": {
+        "operationId": "getApiDocumentation",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Local HTML documentation"
+          }
+        },
+        "summary": "Get self-contained local API documentation",
+        "tags": [
+          "Documentation"
+        ]
+      }
+    },
+    "/docs/openapi.json": {
+      "get": {
+        "operationId": "getOpenApiDocument",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OpenAPI 3.1 document"
+          }
+        },
+        "summary": "Get the deterministic OpenAPI document",
+        "tags": [
+          "Documentation"
+        ]
+      }
+    },
+    "/health/live": {
+      "get": {
+        "operationId": "getLiveness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "ok"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessResponse"
+                }
+              }
+            },
+            "description": "Process is live"
+          }
+        },
+        "summary": "Check process liveness",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "checks": {
+                    "database": {
+                      "status": "up"
+                    },
+                    "sqs": {
+                      "status": "up"
+                    }
+                  },
+                  "status": "ready"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Dependencies are ready"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "At least one dependency is unavailable"
+          }
+        },
+        "summary": "Check PostgreSQL and SQS readiness independently",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "getPrometheusMetrics",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Prometheus metrics"
+          }
+        },
+        "summary": "Get Prometheus text exposition",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/providers/{providerId}/wagering/transactions/{externalTransactionId}": {
+      "get": {
+        "operationId": "getProviderWagerTransaction",
+        "parameters": [
+          {
+            "description": "Provider identity",
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "External transaction identity",
+            "in": "path",
+            "name": "externalTransactionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "createdAt": "2026-01-01T00:00:00.000Z",
+                  "externalTransactionId": "external-transaction-1",
+                  "failureCode": null,
+                  "gameId": "game-1",
+                  "idempotencyKey": "idempotency-key-1",
+                  "kind": "BET",
+                  "money": {
+                    "amount": "20.00",
+                    "currency": "BRL"
+                  },
+                  "observedBalance": {
+                    "amount": "80.00",
+                    "currency": "BRL"
+                  },
+                  "playerId": "22222222-2222-4222-8222-222222222222",
+                  "processedAt": "2026-01-01T00:00:01.000Z",
+                  "providerId": "provider-a",
+                  "referenceExternalTransactionId": null,
+                  "referenceTransactionId": null,
+                  "roundId": "round-1",
+                  "status": "PROCESSED",
+                  "transactionId": "33333333-3333-4333-8333-333333333333",
+                  "walletId": "11111111-1111-4111-8111-111111111111"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/WagerTransactionResponse"
+                }
+              }
+            },
+            "description": "Transaction found"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "failureCode": "INVALID_PAYLOAD",
+                  "message": "Request payload is invalid"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Transaction not found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency temporarily unavailable"
+          }
+        },
+        "summary": "Get a wagering transaction by provider identity",
+        "tags": [
+          "Wagering"
+        ]
+      }
+    },
+    "/wagering/transactions": {
+      "post": {
+        "operationId": "processWagerTransaction",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-correlation-id",
+            "required": false,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "externalTransactionId": "external-transaction-1",
+                "gameId": "game-1",
+                "kind": "BET",
+                "money": {
+                  "amount": "20.00",
+                  "currency": "BRL"
+                },
+                "playerId": "22222222-2222-4222-8222-222222222222",
+                "providerId": "provider-a",
+                "roundId": "round-1",
+                "walletId": "11111111-1111-4111-8111-111111111111"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/WagerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "balance": {
+                    "amount": "80.00",
+                    "currency": "BRL"
+                  },
+                  "idempotentReplay": false,
+                  "status": "PROCESSED",
+                  "transactionId": "33333333-3333-4333-8333-333333333333"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/WagerOutcomeResponse"
+                }
+              }
+            },
+            "description": "Transaction processed"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WagerOutcomeResponse"
+                }
+              }
+            },
+            "description": "Pending reference accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "failureCode": "INVALID_PAYLOAD",
+                  "message": "Request payload is invalid"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Idempotency conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WagerOutcomeResponse"
+                }
+              }
+            },
+            "description": "Business transaction rejected"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency temporarily unavailable"
+          }
+        },
+        "summary": "Process an idempotent wagering transaction",
+        "tags": [
+          "Wagering"
+        ]
+      }
+    },
+    "/wagering/transactions/{transactionId}": {
+      "get": {
+        "operationId": "getWagerTransaction",
+        "parameters": [
+          {
+            "description": "Transaction UUID",
+            "in": "path",
+            "name": "transactionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "createdAt": "2026-01-01T00:00:00.000Z",
+                  "externalTransactionId": "external-transaction-1",
+                  "failureCode": null,
+                  "gameId": "game-1",
+                  "idempotencyKey": "idempotency-key-1",
+                  "kind": "BET",
+                  "money": {
+                    "amount": "20.00",
+                    "currency": "BRL"
+                  },
+                  "observedBalance": {
+                    "amount": "80.00",
+                    "currency": "BRL"
+                  },
+                  "playerId": "22222222-2222-4222-8222-222222222222",
+                  "processedAt": "2026-01-01T00:00:01.000Z",
+                  "providerId": "provider-a",
+                  "referenceExternalTransactionId": null,
+                  "referenceTransactionId": null,
+                  "roundId": "round-1",
+                  "status": "PROCESSED",
+                  "transactionId": "33333333-3333-4333-8333-333333333333",
+                  "walletId": "11111111-1111-4111-8111-111111111111"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/WagerTransactionResponse"
+                }
+              }
+            },
+            "description": "Transaction found"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "failureCode": "INVALID_PAYLOAD",
+                  "message": "Request payload is invalid"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Transaction not found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency temporarily unavailable"
+          }
+        },
+        "summary": "Get a wagering transaction by internal identity",
+        "tags": [
+          "Wagering"
+        ]
+      }
+    },
+    "/wallets": {
+      "post": {
+        "operationId": "createWallet",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-correlation-id",
+            "required": false,
+            "schema": {
+              "maxLength": 255,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "initialBalance": {
+                  "amount": "100.00",
+                  "currency": "BRL"
+                },
+                "playerId": "22222222-2222-4222-8222-222222222222"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CreateWalletRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "balance": {
+                    "amount": "100.00",
+                    "currency": "BRL"
+                  },
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "playerId": "22222222-2222-4222-8222-222222222222",
+                  "version": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/WalletResponse"
+                }
+              }
+            },
+            "description": "Wallet created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "failureCode": "INVALID_PAYLOAD",
+                  "message": "Request payload is invalid"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Wallet already exists"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency temporarily unavailable"
+          }
+        },
+        "summary": "Create a wallet and its opening financial records",
+        "tags": [
+          "Wallets"
+        ]
+      }
+    },
+    "/wallets/{walletId}": {
+      "get": {
+        "operationId": "getWallet",
+        "parameters": [
+          {
+            "description": "Wallet UUID",
+            "in": "path",
+            "name": "walletId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "balance": {
+                    "amount": "100.00",
+                    "currency": "BRL"
+                  },
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "playerId": "22222222-2222-4222-8222-222222222222",
+                  "version": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/WalletResponse"
+                }
+              }
+            },
+            "description": "Wallet found"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "failureCode": "INVALID_PAYLOAD",
+                  "message": "Request payload is invalid"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Wallet not found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency temporarily unavailable"
+          }
+        },
+        "summary": "Get a wallet",
+        "tags": [
+          "Wallets"
+        ]
+      }
+    },
+    "/wallets/{walletId}/ledger": {
+      "get": {
+        "operationId": "listWalletLedger",
+        "parameters": [
+          {
+            "description": "Wallet UUID",
+            "in": "path",
+            "name": "walletId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "items": [
+                    {
+                      "amount": {
+                        "amount": "100.00",
+                        "currency": "BRL"
+                      },
+                      "balanceAfter": {
+                        "amount": "100.00",
+                        "currency": "BRL"
+                      },
+                      "balanceBefore": {
+                        "amount": "0.00",
+                        "currency": "BRL"
+                      },
+                      "createdAt": "2026-01-01T00:00:00.000Z",
+                      "direction": "CREDIT",
+                      "entryHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "entrySequence": 1,
+                      "id": "44444444-4444-4444-8444-444444444444",
+                      "previousEntryHash": null,
+                      "transactionId": "33333333-3333-4333-8333-333333333333",
+                      "walletId": "11111111-1111-4111-8111-111111111111"
+                    }
+                  ],
+                  "nextCursor": null
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerPageResponse"
+                }
+              }
+            },
+            "description": "Ledger page"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "failureCode": "INVALID_PAYLOAD",
+                  "message": "Request payload is invalid"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Wallet not found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency temporarily unavailable"
+          }
+        },
+        "summary": "List immutable ledger entries using a stable opaque cursor",
+        "tags": [
+          "Wallets"
+        ]
+      }
+    },
+    "/wallets/{walletId}/reconciliation": {
+      "post": {
+        "operationId": "reconcileWallet",
+        "parameters": [
+          {
+            "description": "Wallet UUID",
+            "in": "path",
+            "name": "walletId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "accountingBalance": {
+                    "amount": "100.00",
+                    "currency": "BRL"
+                  },
+                  "accountingBalanced": true,
+                  "auditChainValid": true,
+                  "calculatedBalance": {
+                    "amount": "100.00",
+                    "currency": "BRL"
+                  },
+                  "checkedEntries": 1,
+                  "consistent": true,
+                  "difference": {
+                    "amount": "0.00",
+                    "currency": "BRL"
+                  },
+                  "storedBalance": {
+                    "amount": "100.00",
+                    "currency": "BRL"
+                  },
+                  "walletId": "11111111-1111-4111-8111-111111111111"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationResponse"
+                }
+              }
+            },
+            "description": "Reconciliation report"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "failureCode": "INVALID_PAYLOAD",
+                  "message": "Request payload is invalid"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Wallet not found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency temporarily unavailable"
+          }
+        },
+        "summary": "Run a read-only full financial reconciliation",
+        "tags": [
+          "Wallets"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Wallets"
+    },
+    {
+      "name": "Wagering"
+    },
+    {
+      "name": "Operations"
+    },
+    {
+      "name": "Documentation"
+    }
+  ]
+}

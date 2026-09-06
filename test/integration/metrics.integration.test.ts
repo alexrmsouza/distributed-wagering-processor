@@ -24,7 +24,17 @@ interface PrometheusMetricsContract {
   observeProcessingDuration(durationSeconds: number, transport: 'http' | 'sqs'): void;
   recordReconciliationDivergence(): void;
   recordInbox(outcome: 'completed' | 'duplicate' | 'conflict' | 'retryable'): void;
-  recordOutboxPublication(outcome: 'published' | 'rescheduled' | 'skipped'): void;
+  recordOutboxPublication(outcome: 'blocked' | 'published' | 'rescheduled' | 'skipped'): void;
+  setQueueDepth(
+    queue: 'command' | 'command_dlq' | 'event',
+    state: 'available' | 'delayed' | 'in_flight',
+    value: number,
+  ): void;
+  recordQueueDepthCollectionFailure(queue: 'command' | 'command_dlq' | 'event'): void;
+  setQueueDepthLastSuccess(
+    queue: 'command' | 'command_dlq' | 'event',
+    timestampSeconds: number,
+  ): void;
 }
 
 type PrometheusMetricsConstructor = new (registry: Registry) => PrometheusMetricsContract;
@@ -113,6 +123,12 @@ test('records required operational metrics with bounded labels', async () => {
   metrics.recordOutboxPublication('published');
   metrics.recordOutboxPublication('rescheduled');
   metrics.recordOutboxPublication('skipped');
+  metrics.recordOutboxPublication('blocked');
+  metrics.setQueueDepth('command', 'available', 7);
+  metrics.setQueueDepth('command', 'in_flight', 2);
+  metrics.setQueueDepth('command', 'delayed', 1);
+  metrics.recordQueueDepthCollectionFailure('command_dlq');
+  metrics.setQueueDepthLastSuccess('event', 1_788_609_600);
 
   const exposition = await registry.metrics();
   expect(exposition).toContain(
@@ -131,10 +147,27 @@ test('records required operational metrics with bounded labels', async () => {
   expect(exposition).toContain('wallet_reconciliation_divergences_total 1');
   expect(exposition).toContain('inbox_processing_total{outcome="completed"} 1');
   expect(exposition).toContain('outbox_publications_total{outcome="published"} 1');
+  expect(exposition).toContain('outbox_publications_total{outcome="blocked"} 1');
+  expect(exposition).toContain('sqs_queue_depth_messages{queue="command",state="available"} 7');
+  expect(exposition).toContain('sqs_queue_depth_collection_failures_total{queue="command_dlq"} 1');
+  expect(exposition).toContain(
+    'sqs_queue_depth_last_success_unixtime_seconds{queue="event"} 1788609600',
+  );
 
   const observedLabelKeys = labelKeys(exposition);
   expect(observedLabelKeys).toEqual(
-    new Set(['component', 'kind', 'le', 'outcome', 'reason', 'source', 'status', 'transport']),
+    new Set([
+      'component',
+      'kind',
+      'le',
+      'outcome',
+      'queue',
+      'reason',
+      'source',
+      'state',
+      'status',
+      'transport',
+    ]),
   );
   for (const forbiddenLabel of FORBIDDEN_LABEL_KEYS) {
     expect(observedLabelKeys).not.toContain(forbiddenLabel);
@@ -187,6 +220,15 @@ test('rejects arbitrary runtime label values before recording them', () => {
   }).toThrow();
   expect(() => {
     metrics.observeProcessingDuration(0.1, 'message-identifier' as never);
+  }).toThrow();
+  expect(() => {
+    metrics.setQueueDepth('queue-url' as never, 'available', 1);
+  }).toThrow();
+  expect(() => {
+    metrics.setQueueDepth('command', 'wallet-id' as never, 1);
+  }).toThrow();
+  expect(() => {
+    metrics.setQueueDepth('command', 'available', -1);
   }).toThrow();
 });
 

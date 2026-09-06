@@ -16,3 +16,10 @@ export interface FailpointControlPort {
   disarm(name: FailpointName): void;
   disarmAll(): void;
 }
+
+export class FailpointTriggeredError extends Error {
+  public constructor(public readonly failpoint: FailpointName) {
+    super(`Failpoint triggered: ${failpoint}`);
+    this.name = 'FailpointTriggeredError';
+  }
+}
